@@ -1,6 +1,6 @@
 #include <coco/loop.hpp>
 #include <coco/debug.hpp>
-#include <coco/board/StorageTest.hpp>
+#include <StorageTest.hpp>
 #ifdef NATIVE	
 #include <iostream>
 #endif
@@ -44,10 +44,7 @@ void fail() {
 	debug::set(debug::MAGENTA);
 }
 
-void test() {
-	debug::setBlue();
-	board::StorageTest drivers;
-	debug::clearBlue();
+void test(Loop &loop, Flash &flash, Storage &storage) {
 
 	// random generator for random data of random length
 	Kiss32Random random;
@@ -58,17 +55,17 @@ void test() {
 	Buffer<uint8_t, 128> buffer;
 
 	// determine capacity
-	auto info = drivers.flash.getInfo();
+	auto info = flash.getInfo();
 	int capacity = std::min(((info.sectorCount - 1) * (info.sectorSize - 8)) / (128 + 8), int(std::size(sizes))) - 1;
 #ifdef NATIVE
 	std::cout << "capacity: " << capacity << std::endl;
 
 	// measure time
-	auto start = loop::now();
+	auto start = loop.now();
 #endif
 
 	// clear storage
-	drivers.storage.clearBlocking();
+	storage.clearBlocking();
 
 	for (int i = 0; i < 10000; ++i) {
 		if (i % 100 == 0) {
@@ -86,7 +83,7 @@ void test() {
 			int id = index + 5;
 
 			// read data
-			drivers.storage.readBlocking(id, buffer);
+			storage.readBlocking(id, buffer);
 
 			// check data
 			if (buffer.size() != size)
@@ -112,12 +109,12 @@ void test() {
 		}
 
 		// store
-		if (drivers.storage.writeBlocking(id, buffer) != Storage::Status::OK)
+		if (storage.writeBlocking(id, buffer) != Storage::Status::OK)
 			return fail();
 	}
 
 #ifdef NATIVE
-	auto end = loop::now();
+	auto end = loop.now();
 	std::cout << int((end - start) / 1s) << "s" << std::endl;
 #endif
 
@@ -127,8 +124,11 @@ void test() {
 
 int main() {
 	debug::init();
+	debug::setBlue();
+	Drivers drivers;
+	debug::clearBlue();
 
-	test();
+	test(drivers.loop, drivers.flash, drivers.storage);
 
-	loop::run();
+	drivers.loop.run();
 }
