@@ -10,28 +10,34 @@ macro(generate_hex TARGET)
 	endif()
 endmacro()
 
-if(SERIES)
-	# generate UsbDeviceTest for every board
-	foreach(BOARD ${coco-devboards_COMPONENT_NAMES})
-		string(REGEX REPLACE ".*\\:" "StorageTest-" NAME ${BOARD})
+# iterate over boards and generate tests
+foreach(COMPONENT ${coco-devboards_COMPONENT_NAMES})
+	string(REGEX REPLACE ".*\\:" "" BOARD ${COMPONENT})
+	message("*** Boad: ${BOARD}")
+	
+	# check if board specific header exists
+	if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${BOARD}/StorageTest.hpp)
+		set(NAME "StorageTest-${BOARD}")
+
 		add_executable(${NAME}
 			StorageTest.cpp
 		)
 		target_include_directories(${NAME}
 			PRIVATE
 				../
+				${BOARD}
 		)
 
 		# find link.ld of board
-		get_target_property(INCLUDES ${BOARD} INTERFACE_INCLUDE_DIRECTORIES)
+		get_target_property(INCLUDES ${COMPONENT} INTERFACE_INCLUDE_DIRECTORIES)
 		target_link_directories(${NAME}
 			PRIVATE	
 				${INCLUDES}
 		)
 
 		target_link_libraries(${NAME}
-			${BOARD}
 			coco::coco
+			${COMPONENT}
 			coco-loop::coco-loop
 			${PROJECT_NAME}
 		)
@@ -43,5 +49,5 @@ if(SERIES)
 
 		# generate hex file for flashing the target
 		generate_hex(${NAME})
-	endforeach()
-endif()
+	endif()
+endforeach()

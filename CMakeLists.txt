@@ -30,6 +30,7 @@ message("*** Crosscompiling: ${CMAKE_CROSSCOMPILING}")
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 
 # platform dependent configuration
+message("*** OS: ${OS}")
 message("*** Platform: ${PLATFORM}")
 if(${PLATFORM} STREQUAL "native")
 	set(SERIES native)
