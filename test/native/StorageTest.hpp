@@ -2,14 +2,27 @@
 
 #include <coco/platform/Loop_native.hpp>
 #include <coco/platform/Flash_File.hpp>
-#include <coco/Storage_Flash.hpp>
+#include <coco/Storage_Buffer.hpp>
 
 
 using namespace coco;
 
+constexpr int PAGE_SIZE = 1024;
+constexpr int BLOCK_SIZE = 2;
+Storage_Buffer::Info storageInfo{
+	PAGE_SIZE,
+	BLOCK_SIZE,
+	0,
+	8192,
+	2,
+	Storage_Buffer::Type::MEM_4N
+};
+
+
 // drivers for FlashTest
 struct Drivers {
+
 	Loop_native loop;
-	Flash_File flash{"storageTest.bin", 4, 32768, 4};
-	Storage_Flash storage{flash};
+	Flash_File flash{"flash.bin", 16384, PAGE_SIZE, BLOCK_SIZE};
+	Flash_File::Buffer buffer{flash, 256};
 };

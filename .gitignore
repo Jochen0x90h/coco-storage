@@ -12,3 +12,6 @@ cmake-build*/
 
 # QtCreator
 CMakeLists.txt.user
+
+# test files
+flash.bin
