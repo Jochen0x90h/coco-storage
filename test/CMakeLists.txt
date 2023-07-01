@@ -13,8 +13,8 @@ endmacro()
 # iterate over boards and generate tests
 foreach(COMPONENT ${coco-devboards_COMPONENT_NAMES})
 	string(REGEX REPLACE ".*\\:" "" BOARD ${COMPONENT})
-	message("*** Boad: ${BOARD}")
-	
+	message("*** Board: ${BOARD}")
+
 	# check if board specific header exists
 	if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${BOARD}/StorageTest.hpp)
 		set(NAME "StorageTest-${BOARD}")
@@ -31,14 +31,15 @@ foreach(COMPONENT ${coco-devboards_COMPONENT_NAMES})
 		# find link.ld of board
 		get_target_property(INCLUDES ${COMPONENT} INTERFACE_INCLUDE_DIRECTORIES)
 		target_link_directories(${NAME}
-			PRIVATE	
+			PRIVATE
 				${INCLUDES}
 		)
 
 		target_link_libraries(${NAME}
 			coco::coco
-			${COMPONENT}
 			coco-loop::coco-loop
+			coco-flash::coco-flash
+			${COMPONENT}
 			${PROJECT_NAME}
 		)
 

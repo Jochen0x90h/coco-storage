@@ -1,71 +1,42 @@
-#include <coco/loop.hpp>
+#include <coco/Storage_Buffer.hpp>
 #include <coco/debug.hpp>
+#include <coco/PseudoRandom.hpp>
 #include <StorageTest.hpp>
-#ifdef NATIVE	
+#ifdef NATIVE
 #include <iostream>
 #endif
 
 
 using namespace coco;
 
-struct Kiss32Random {
-	uint32_t x;
-	uint32_t y;
-	uint32_t z;
-	uint32_t c;
+Coroutine test(Loop &loop, Buffer &buffer2) {
+	Storage_Buffer storage(storageInfo, buffer2);
 
-	// seed must be != 0
-	explicit Kiss32Random(uint32_t seed = 123456789) {
-		x = seed;
-		y = 362436000;
-		z = 521288629;
-		c = 7654321;
-	}
-
-	int draw() {
-		// Linear congruence generator
-		x = 69069 * x + 12345;
-
-		// Xor shift
-		y ^= y << 13;
-		y ^= y >> 17;
-		y ^= y << 5;
-
-		// Multiply-with-carry
-		uint64_t t = 698769069ULL * z + c;
-		c = t >> 32;
-		z = (uint32_t) t;
-
-		return (x + y + z) & 0x7fffffff;
-	}
-};
-
-void fail() {
-	debug::set(debug::MAGENTA);
-}
-
-void test(Loop &loop, Flash &flash, Storage &storage) {
-
-	// random generator for random data of random length
-	Kiss32Random random;
+	// random generator for random data
+	KissRandom random;
 
 
 	// table of currently stored elements
 	int sizes[64] = {}; // initialize with zero
-	Buffer<uint8_t, 128> buffer;
+	ArrayBuffer<uint8_t, 128> buffer;
 
-	// determine capacity
-	auto info = flash.getInfo();
-	int capacity = std::min(((info.sectorCount - 1) * (info.sectorSize - 8)) / (128 + 8), int(std::size(sizes))) - 1;
+	// determine capacity (number of entries simultaneously in the storag)
+	//auto info = flash.getInfo();
+	int capacity = std::min(((storageInfo.sectorCount - 1) * (storageInfo.sectorSize - 8)) / (128 + 8), int(std::size(sizes))) - 1;
 #ifdef NATIVE
 	std::cout << "capacity: " << capacity << std::endl;
 
 	// measure time
 	auto start = loop.now();
+#else
+	// indicate start
+	debug::setBlue();
 #endif
 
+	Storage::Result result;
+
 	// clear storage
-	storage.clearBlocking();
+	co_await storage.clear(result);
 
 	for (int i = 0; i < 10000; ++i) {
 		if (i % 100 == 0) {
@@ -83,21 +54,27 @@ void test(Loop &loop, Flash &flash, Storage &storage) {
 			int id = index + 5;
 
 			// read data
-			storage.readBlocking(id, buffer);
+			co_await storage.read(id, buffer, result);
 
 			// check data
-			if (buffer.size() != size)
-				return fail();
+			if (buffer.size() != size) {
+				// fail
+				debug::set(debug::MAGENTA);
+				co_return;
+			}
 			for (int j = 0; j < size; ++j) {
-				if (buffer[j] != uint8_t(id + j))
-					return fail();
+				if (buffer[j] != uint8_t(id + j)) {
+					// fail
+					debug::set(debug::CYAN);
+					co_return;
+				}
 			}
 		}
 
 		// random size in range [0, 128]
 		int size = random.draw() % 129;
 
-		// generate id in range [5, 68]
+		// generate id in range [5, capacity + 4]
 		int index = random.draw() % capacity;
 		int id = index + 5;
 		sizes[index] = size;
@@ -109,26 +86,44 @@ void test(Loop &loop, Flash &flash, Storage &storage) {
 		}
 
 		// store
-		if (storage.writeBlocking(id, buffer) != Storage::Status::OK)
-			return fail();
-	}
+		co_await storage.write(id, buffer, result);
+		if (result != Storage::Result::OK) {
+			// fail
+			debug::set(debug::YELLOW);
+			co_return;
+		}
 
-#ifdef NATIVE
-	auto end = loop.now();
-	std::cout << int((end - start) / 1s) << "s" << std::endl;
-#endif
+		//co_await loop.sleep(200ms);
+	}
 
 	// ok
 	debug::set(debug::GREEN);
+
+#ifdef NATIVE
+	// measure time
+	auto end = loop.now();
+	std::cout << int((end - start) / 1s) << "s" << std::endl;
+
+	co_await loop.yield();
+	loop.exit();
+
+	// bug
+	co_await loop.yield();
+#else
+	while (true) {
+		debug::set(debug::WHITE);
+		co_await loop.sleep(200ms);
+		debug::set(debug::BLACK);
+		co_await loop.sleep(200ms);
+	}
+#endif
 }
 
 int main() {
 	debug::init();
-	debug::setBlue();
 	Drivers drivers;
-	debug::clearBlue();
 
-	test(drivers.loop, drivers.flash, drivers.storage);
+	test(drivers.loop, drivers.buffer);
 
 	drivers.loop.run();
 }

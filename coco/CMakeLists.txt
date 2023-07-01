@@ -1,16 +1,20 @@
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME}
 	PUBLIC FILE_SET headers TYPE HEADERS FILES
+		#Storage.hpp
+		#Storage_Flash.hpp
 		Storage.hpp
-		Storage_Flash.hpp
+		Storage_Buffer.hpp
 	PRIVATE
+		#Storage.cpp
+		#Storage_Flash.cpp
 		Storage.cpp
-		Storage_Flash.cpp
+		Storage_Buffer.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
 	coco::coco
-	coco-flash::coco-flash
+	coco-buffer::coco-buffer
 )
 
 target_include_directories(${PROJECT_NAME}
