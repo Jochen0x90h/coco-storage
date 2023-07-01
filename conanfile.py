@@ -29,10 +29,11 @@ class Project(ConanFile):
     def build_requirements(self):
         self.test_requires("coco-devboards/0.4.0")
         self.test_requires("coco-loop/0.4.0")
-        self.test_requires("coco-flash/toolchain")
+        self.test_requires("coco-flash/0.3.0")
 
     def configure(self):
         # pass platform option to dependencies
+        self.options["coco"].platform = self.options.platform
         self.options["coco-buffer"].platform = self.options.platform
         self.options["coco-toolchain"].platform = self.options.platform
         self.options["coco-devboards"].platform = self.options.platform

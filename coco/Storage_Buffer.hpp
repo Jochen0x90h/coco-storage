@@ -15,20 +15,28 @@ uint16_t crc16(const void *data, int size, uint16_t crc = 0xffff);
 */
 class Storage_Buffer : public Storage {
 public:
+	// memory type
 	enum class Type : uint8_t {
 		// generic memory (file, eeprom, feram) with 4 address bytes in native byte order
 		MEM_4N,
 
-		// generic memory (file, eeprom, feram) with 2 address bytes in big endian byte order
-		MEM_2B,
+		// generic memory (file, eeprom, feram) with 1 command byte and 2 address bytes in big endian byte order
+		MEM_1C2B,
 
 		// flash with 4 address bytes in native byte order
 		FLASH_4N,
 
-		// flash with 2 address bytes in big endian byte order
-		FLASH_2B,
+		// flash with 1 command byte and 2 address bytes in big endian byte order
+		FLASH_1C2B,
 	};
 
+	enum class Command {
+		READ = 0,
+		WRITE = 1,
+		ERASE = 2
+	};
+
+	// memory info
 	struct Info {
 		// size of a page that has to be erased at once
 		int pageSize;
@@ -36,10 +44,16 @@ public:
 		// size of a block that has to be written at once, must be power of 2
 		int blockSize;
 
-		uint32_t offset;
+		// start address in memory
+		uint32_t address;
+
+		// size of a sector
 		int sectorSize;
+
+		// number of sectors, at least 2
 		int sectorCount;
 
+		// memory type
 		Type type;
 
 		// commands for serial memory (read, write, erase)
@@ -93,7 +107,7 @@ protected:
 		return crc16(&entry, offsetof(Entry, checksum));
 	}
 
-	void setOffset(uint32_t offset, int command = 0);
+	void setOffset(uint32_t offset, Command command);
 
 	// check if allocation table entry is valid
 	bool isEntryValid(int entryOffset, int dataOffset, const Entry &entry);

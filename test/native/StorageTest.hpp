@@ -9,12 +9,15 @@ using namespace coco;
 
 constexpr int PAGE_SIZE = 1024;
 constexpr int BLOCK_SIZE = 2;
+//constexpr int PAGE_SIZE = 4096;
+//constexpr int BLOCK_SIZE = 4;
+
 Storage_Buffer::Info storageInfo{
 	PAGE_SIZE,
 	BLOCK_SIZE,
-	0,
-	8192,
-	2,
+	0, // address
+	8192, // sector size
+	2, // sector count
 	Storage_Buffer::Type::MEM_4N
 };
 

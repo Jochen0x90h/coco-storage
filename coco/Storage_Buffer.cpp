@@ -85,7 +85,7 @@ AwaitableCoroutine Storage_Buffer::mount(Result &result) {
 			int sectorIndex = i == -1 ? lastI : i;
 			int sectorOffset = sectorIndex * this->info.sectorSize;
 
-			setOffset(sectorOffset);
+			setOffset(sectorOffset, Command::READ);
 			co_await buffer.read(sizeof(Entry));
 			if (buffer.size() < sizeof(Entry)) {
 				// something went wrong
@@ -95,7 +95,7 @@ AwaitableCoroutine Storage_Buffer::mount(Result &result) {
 			}
 			if (buffer.value<Entry>().empty()) {
 				// sector is empty or open: read first entry
-				setOffset(sectorOffset + this->entrySize);
+				setOffset(sectorOffset + this->entrySize, Command::READ);
 				co_await this->buffer.read(sizeof(Entry));
 				if (buffer.size() < sizeof(Entry)) {
 					// something went wrong
@@ -174,9 +174,7 @@ AwaitableCoroutine Storage_Buffer::mount(Result &result) {
 		this->dataWriteOffset = this->info.sectorSize;
 
 		// garbage collect tail sector
-		//Debug::setGreenLed();
 		co_await gc(next);
-		//Debug::clearGreenLed();
 
 		break;
 	}
@@ -186,11 +184,13 @@ AwaitableCoroutine Storage_Buffer::clear(Result &result) {
 	this->stat = State::BUSY;
 
 	co_await this->buffer.acquire();
+//debug::set(debug::MAGENTA);
 
 	// erase flash
 	for (int i = 0; i < this->info.sectorCount; ++i) {
 		co_await eraseSector(i);
 	}
+//debug::set(debug::CYAN);
 
 	// initialize member variables
 	this->sectorIndex = 0;
@@ -233,7 +233,7 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 		// iterate over allocation table entries from last to first (newest to oldest)
 		while (entryOffset > 0) {
 			// read entry
-			setOffset(sectorOffset + entryOffset);
+			setOffset(sectorOffset + entryOffset, Command::READ);
 			co_await buffer.read(sizeof(Entry));
 			if (buffer.size() < sizeof(Entry)) {
 				// something went wrong
@@ -263,7 +263,7 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 						int s = size;
 						while (s > 0) {
 							int toRead = std::min(s, buffer.size());
-							setOffset(offset);
+							setOffset(offset, Command::READ);
 							co_await buffer.read(toRead);
 							int read = buffer.transferred();
 							if (read < toRead) {
@@ -323,8 +323,8 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Res
 		co_return;
 	}
 
-	// check size, must fit into a sector which has at least two entries (one for the entry and one for closing)
-	if (uint32_t(size) > this->info.sectorSize - this->entrySize * 2) {
+	// check size, must fit into a sector which has at least two entries (one for the single entry and one for closing)
+	if (uint32_t(size) > uint32_t(this->info.sectorSize - this->entrySize * 2)) {
 		assert(false);
 		result = Result::WRITE_SIZE_EXCEEDED;
 		co_return;
@@ -362,7 +362,7 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Res
 		int toWrite = std::min(s, buffer.size());
 		//buffer.resize(toWrite);
 		std::copy(d, d + toWrite, buffer.begin());
-		setOffset(this->sectorOffset + offset, 1);
+		setOffset(this->sectorOffset + offset, Command::WRITE);
 		co_await buffer.write(toWrite);
 		offset += toWrite;
 		d += toWrite;
@@ -376,17 +376,18 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Res
 	this->stat = State::READY;
 }
 
-void Storage_Buffer::setOffset(uint32_t offset, int command) {
+void Storage_Buffer::setOffset(uint32_t offset, Command command) {
+	offset += this->info.address;
 	switch (this->info.type) {
 	case Type::MEM_4N:
 	case Type::FLASH_4N:
 		this->buffer.setHeader(offset);
 		break;
-	case Type::MEM_2B:
-	case Type::FLASH_2B:
+	case Type::MEM_1C2B:
+	case Type::FLASH_1C2B:
 		{
 			uint8_t header[3];
-			header[0] = this->info.commands[command];
+			header[0] = this->info.commands[int(command)];
 			header[1] = offset >> 8;
 			header[2] = offset;
 			this->buffer.setHeader(header);
@@ -420,7 +421,7 @@ AwaitableCoroutine Storage_Buffer::detectOffsets(int sectorIndex, std::pair<int,
 	// iterate over entries
 	while (entryOffset <= dataOffset) {
 		// read next entry
-		setOffset(sectorOffset + entryOffset);
+		setOffset(sectorOffset + entryOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
 		if (buffer.size() < sizeof(Entry)) {
 			// something went wrong
@@ -449,7 +450,7 @@ AwaitableCoroutine Storage_Buffer::detectOffsets(int sectorIndex, std::pair<int,
 	while (size > 0) {
 		int toCheck = std::min(size, buffer.size());
 
-		setOffset(sectorOffset + o);
+		setOffset(sectorOffset + o, Command::READ);
 		co_await buffer.read(toCheck);
 		//this->flash.readBlocking(sector + o, buffer, toCheck);
 
@@ -474,7 +475,7 @@ AwaitableCoroutine Storage_Buffer::getLastEntry(int sectorOffset, int &entryOffs
 	//Entry entry;
 	//flash.readBlocking(sector, &entry, sizeof(entry));
 	{
-		setOffset(sectorOffset);
+		setOffset(sectorOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
 		if (buffer.size() < sizeof(Entry)) {
 			// something went wrong
@@ -503,7 +504,7 @@ AwaitableCoroutine Storage_Buffer::getLastEntry(int sectorOffset, int &entryOffs
 	// iterate over entries
 	while (entryOffset <= dataOffset) {
 		// read next entry
-		setOffset(sectorOffset + entryOffset);
+		setOffset(sectorOffset + entryOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
 		if (buffer.size() < sizeof(Entry)) {
 			// something went wrong
@@ -545,7 +546,7 @@ Awaitable<Buffer::State> Storage_Buffer::writeEntry(uint16_t id, uint16_t size) 
 	this->entryWriteOffset += this->entrySize;
 
 	// write entry
-	setOffset(offset, 1);
+	setOffset(offset, Command::WRITE);
 	return buffer.write(sizeof(Entry));
 }
 
@@ -571,7 +572,7 @@ Awaitable<Buffer::State> Storage_Buffer::closeSector() {
 	this->dataWriteOffset = this->info.sectorSize;
 
 	// write close entry at end of sector
-	setOffset(offset, 1);
+	setOffset(offset, Command::WRITE);
 	return buffer.write(sizeof(Entry));
 }
 
@@ -607,7 +608,7 @@ AwaitableCoroutine Storage_Buffer::eraseSector(int index) {
 			int toWrite = std::min(s, buffer.size());
 			//buffer.resize(toWrite);
 			std::fill(buffer.begin(), buffer.end(), 0xff);
-			setOffset(offset, 1);
+			setOffset(offset, Command::WRITE);
 			co_await buffer.write(toWrite);
 			offset += toWrite;
 			s -= toWrite;
@@ -615,8 +616,9 @@ AwaitableCoroutine Storage_Buffer::eraseSector(int index) {
 	} else {
 		// flash: use page erase
 		for (int offset = 0; offset < this->info.sectorSize; offset += this->info.pageSize) {
-			setOffset(sectorOffset + offset, 2);
+			setOffset(sectorOffset + offset, Command::ERASE);
 			co_await buffer.erase();
+//debug::set(debug::YELLOW);
 		}
 	}
 }
@@ -635,7 +637,7 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 		// read entry
 		//Entry entry;
 		//this->flash.readBlocking(tailSector + entryOffset, &entry, sizeof(entry));
-		setOffset(tailSectorOffset + tailEntryOffset);
+		setOffset(tailSectorOffset + tailEntryOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
 		if (buffer.size() < sizeof(Entry)) {
 			// something went wrong
@@ -662,7 +664,7 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 				while (searchEntryOffset <= searchLastEntryOffset) {
 					//Entry e;
 					//this->flash.readBlocking(sector + entryOffset, &e, sizeof(e));
-					setOffset(searchSectorOffset + searchEntryOffset);
+					setOffset(searchSectorOffset + searchEntryOffset, Command::READ);
 					co_await buffer.read(sizeof(Entry));
 					if (buffer.size() < sizeof(Entry)) {
 						// something went wrong
@@ -697,11 +699,11 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 				int s = tailEntry.size;
 				while (s > 0) {
 					int toCopy = std::min(s, buffer.size());
-					setOffset(tailOffset);
+					setOffset(tailOffset, Command::READ);
 					co_await buffer.read(toCopy);
 					// todo: check if read successful
 
-					setOffset(this->sectorOffset + offset, 1);
+					setOffset(this->sectorOffset + offset, Command::WRITE);
 					co_await buffer.write(toCopy);
 					offset += toCopy;
 					tailOffset += toCopy;

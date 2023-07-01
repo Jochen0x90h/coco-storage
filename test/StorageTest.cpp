@@ -9,10 +9,6 @@
 
 using namespace coco;
 
-void fail() {
-	debug::set(debug::MAGENTA);
-}
-
 Coroutine test(Loop &loop, Buffer &buffer2) {
 	Storage_Buffer storage(storageInfo, buffer2);
 
@@ -32,6 +28,9 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 
 	// measure time
 	auto start = loop.now();
+#else
+	// indicate start
+	debug::setBlue();
 #endif
 
 	Storage::Result result;
@@ -59,12 +58,14 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 
 			// check data
 			if (buffer.size() != size) {
-				fail();
+				// fail
+				debug::set(debug::MAGENTA);
 				co_return;
 			}
 			for (int j = 0; j < size; ++j) {
 				if (buffer[j] != uint8_t(id + j)) {
-					fail();
+					// fail
+					debug::set(debug::CYAN);
 					co_return;
 				}
 			}
@@ -87,9 +88,12 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 		// store
 		co_await storage.write(id, buffer, result);
 		if (result != Storage::Result::OK) {
-			fail();
+			// fail
+			debug::set(debug::YELLOW);
 			co_return;
 		}
+
+		//co_await loop.sleep(200ms);
 	}
 
 	// ok
@@ -105,14 +109,19 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 
 	// bug
 	co_await loop.yield();
+#else
+	while (true) {
+		debug::set(debug::WHITE);
+		co_await loop.sleep(200ms);
+		debug::set(debug::BLACK);
+		co_await loop.sleep(200ms);
+	}
 #endif
 }
 
 int main() {
 	debug::init();
-	debug::setBlue();
 	Drivers drivers;
-	debug::clearBlue();
 
 	test(drivers.loop, drivers.buffer);
 
