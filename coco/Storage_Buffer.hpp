@@ -6,8 +6,6 @@
 
 namespace coco {
 
-uint16_t crc16(const void *data, int size, uint16_t crc = 0xffff);
-
 /**
 	Storage working on a buffer with address header such as internal or external flash.
 	Inspired by https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html
@@ -75,6 +73,8 @@ public:
 	using Storage::read;
 	using Storage::write;
 
+	// CRC-16/CCITT-FALSE https://crccalc.com/?crc=12&method=crc16&datatype=ascii&outtype=0
+	static uint16_t crc16(const void *data, int size, uint16_t crc = 0xffff);
 
 protected:
 	enum SectorState {
@@ -119,10 +119,10 @@ protected:
 	AwaitableCoroutine getLastEntry(int sectorOffset, int &entryOffsetResult);
 
 	// write an entry (without data)
-	Awaitable<Buffer::State> writeEntry(uint16_t id, uint16_t size);
+	Awaitable<> writeEntry(uint16_t id, uint16_t size);
 
 	// close the current sector
-	Awaitable<Buffer::State> closeSector();
+	Awaitable<> closeSector();
 
 	// check if closing allocation table entry is valid
 	bool isCloseEntryValid(const Entry &entry);

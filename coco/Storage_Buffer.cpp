@@ -1,43 +1,9 @@
 #include "Storage_Buffer.hpp"
+#include <coco/align.hpp>
 #include <coco/debug.hpp>
-//#include <crc.hpp>
 
 
 namespace coco {
-
-//namespace {
-// see https://www.mikrocontroller.net/attachment/91385/crc16.c
-
-// generated in protocolTest.cpp
-const uint16_t crc16Table[] {
-	0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
-	0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6, 0x9339, 0x8318, 0xb37b, 0xa35a, 0xd3bd, 0xc39c, 0xf3ff, 0xe3de,
-	0x2462, 0x3443, 0x0420, 0x1401, 0x64e6, 0x74c7, 0x44a4, 0x5485, 0xa56a, 0xb54b, 0x8528, 0x9509, 0xe5ee, 0xf5cf, 0xc5ac, 0xd58d,
-	0x3653, 0x2672, 0x1611, 0x0630, 0x76d7, 0x66f6, 0x5695, 0x46b4, 0xb75b, 0xa77a, 0x9719, 0x8738, 0xf7df, 0xe7fe, 0xd79d, 0xc7bc,
-	0x48c4, 0x58e5, 0x6886, 0x78a7, 0x0840, 0x1861, 0x2802, 0x3823, 0xc9cc, 0xd9ed, 0xe98e, 0xf9af, 0x8948, 0x9969, 0xa90a, 0xb92b,
-	0x5af5, 0x4ad4, 0x7ab7, 0x6a96, 0x1a71, 0x0a50, 0x3a33, 0x2a12, 0xdbfd, 0xcbdc, 0xfbbf, 0xeb9e, 0x9b79, 0x8b58, 0xbb3b, 0xab1a,
-	0x6ca6, 0x7c87, 0x4ce4, 0x5cc5, 0x2c22, 0x3c03, 0x0c60, 0x1c41, 0xedae, 0xfd8f, 0xcdec, 0xddcd, 0xad2a, 0xbd0b, 0x8d68, 0x9d49,
-	0x7e97, 0x6eb6, 0x5ed5, 0x4ef4, 0x3e13, 0x2e32, 0x1e51, 0x0e70, 0xff9f, 0xefbe, 0xdfdd, 0xcffc, 0xbf1b, 0xaf3a, 0x9f59, 0x8f78,
-	0x9188, 0x81a9, 0xb1ca, 0xa1eb, 0xd10c, 0xc12d, 0xf14e, 0xe16f, 0x1080, 0x00a1, 0x30c2, 0x20e3, 0x5004, 0x4025, 0x7046, 0x6067,
-	0x83b9, 0x9398, 0xa3fb, 0xb3da, 0xc33d, 0xd31c, 0xe37f, 0xf35e, 0x02b1, 0x1290, 0x22f3, 0x32d2, 0x4235, 0x5214, 0x6277, 0x7256,
-	0xb5ea, 0xa5cb, 0x95a8, 0x8589, 0xf56e, 0xe54f, 0xd52c, 0xc50d, 0x34e2, 0x24c3, 0x14a0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-	0xa7db, 0xb7fa, 0x8799, 0x97b8, 0xe75f, 0xf77e, 0xc71d, 0xd73c, 0x26d3, 0x36f2, 0x0691, 0x16b0, 0x6657, 0x7676, 0x4615, 0x5634,
-	0xd94c, 0xc96d, 0xf90e, 0xe92f, 0x99c8, 0x89e9, 0xb98a, 0xa9ab, 0x5844, 0x4865, 0x7806, 0x6827, 0x18c0, 0x08e1, 0x3882, 0x28a3,
-	0xcb7d, 0xdb5c, 0xeb3f, 0xfb1e, 0x8bf9, 0x9bd8, 0xabbb, 0xbb9a, 0x4a75, 0x5a54, 0x6a37, 0x7a16, 0x0af1, 0x1ad0, 0x2ab3, 0x3a92,
-	0xfd2e, 0xed0f, 0xdd6c, 0xcd4d, 0xbdaa, 0xad8b, 0x9de8, 0x8dc9, 0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1,
-	0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8, 0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
-};
-
-uint16_t crc16(const void *data, int size, uint16_t crc) {
-	auto *d = reinterpret_cast<const uint8_t *>(data);
-	for (int i = 0; i < size; ++i) {
-		crc = crc16Table[(crc >> 8) ^ d[i]] ^ (crc << 8);
-	}
-	return crc;
-}
-
-//} // anonymous namespace
-
 
 const Storage::State &Storage_Buffer::state() {
 	return this->stat;
@@ -87,7 +53,7 @@ AwaitableCoroutine Storage_Buffer::mount(Result &result) {
 
 			setOffset(sectorOffset, Command::READ);
 			co_await buffer.read(sizeof(Entry));
-			if (buffer.size() < sizeof(Entry)) {
+			if (buffer.size() < int(sizeof(Entry))) {
 				// something went wrong
 				result = Result::FATAL_ERROR;
 				this->stat = State::READY;
@@ -97,7 +63,7 @@ AwaitableCoroutine Storage_Buffer::mount(Result &result) {
 				// sector is empty or open: read first entry
 				setOffset(sectorOffset + this->entrySize, Command::READ);
 				co_await this->buffer.read(sizeof(Entry));
-				if (buffer.size() < sizeof(Entry)) {
+				if (buffer.size() < int(sizeof(Entry))) {
 					// something went wrong
 					result = Result::FATAL_ERROR;
 					this->stat = State::READY;
@@ -235,7 +201,7 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 			// read entry
 			setOffset(sectorOffset + entryOffset, Command::READ);
 			co_await buffer.read(sizeof(Entry));
-			if (buffer.size() < sizeof(Entry)) {
+			if (buffer.size() < int(sizeof(Entry))) {
 				// something went wrong
 				result = Result::FATAL_ERROR;
 				this->stat = State::READY;
@@ -376,6 +342,30 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Res
 	this->stat = State::READY;
 }
 
+// reference: https://www.ccsinfo.com/forum/viewtopic.php?t=24977
+uint16_t Storage_Buffer::crc16(const void *data, int size, uint16_t crc) {
+	auto *it = reinterpret_cast<const uint8_t *>(data);
+	auto *end = it + size;
+	for (; it < end; ++it) {
+		uint16_t x = (crc >> 8) ^ *it;
+		x ^= x >> 4;
+		crc = (crc << 8) ^ (x << 12) ^ (x << 5) ^ x;
+	}
+	return crc;
+}
+
+/*
+// more on crc: https://www.mikrocontroller.net/attachment/91385/crc16.c
+// crc with table (can be obtained from https://crccalc.com/?crc=12&method=crc16&datatype=ascii&outtype=0):
+uint16_t crc16(const void *data, int size, uint16_t crc) {
+	auto *d = reinterpret_cast<const uint8_t *>(data);
+	for (int i = 0; i < size; ++i) {
+		crc = crc16Table[(crc >> 8) ^ d[i]] ^ (crc << 8);
+	}
+	return crc;
+}
+*/
+
 void Storage_Buffer::setOffset(uint32_t offset, Command command) {
 	offset += this->info.address;
 	switch (this->info.type) {
@@ -423,12 +413,11 @@ AwaitableCoroutine Storage_Buffer::detectOffsets(int sectorIndex, std::pair<int,
 		// read next entry
 		setOffset(sectorOffset + entryOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
-		if (buffer.size() < sizeof(Entry)) {
+		if (buffer.size() < int(sizeof(Entry))) {
 			// something went wrong
 			break;
 		}
 		auto &entry = buffer.value<Entry>();
-		//flash.readBlocking(sector + entryOffset, &entry, sizeof(entry));
 
 		// end of list is indicated by an empty entry
 		if (entry.empty())
@@ -444,7 +433,6 @@ AwaitableCoroutine Storage_Buffer::detectOffsets(int sectorIndex, std::pair<int,
 
 	// check if data is actually empty and does not contain incomplete writes
 	// check from entryOffset (behind last entry) to dataOffset (start of data of last entry)
-	//uint8_t buffer[BUFFER_SIZE];
 	int size = dataOffset - entryOffset;
 	int o = entryOffset;
 	while (size > 0) {
@@ -452,7 +440,6 @@ AwaitableCoroutine Storage_Buffer::detectOffsets(int sectorIndex, std::pair<int,
 
 		setOffset(sectorOffset + o, Command::READ);
 		co_await buffer.read(toCheck);
-		//this->flash.readBlocking(sector + o, buffer, toCheck);
 
 		int read = buffer.size();
 		for (int i = 0; i < read; ++i) {
@@ -472,12 +459,10 @@ AwaitableCoroutine Storage_Buffer::getLastEntry(int sectorOffset, int &entryOffs
 	auto &buffer = this->buffer;
 
 	// read close entry (assumption is that it is present and valid)
-	//Entry entry;
-	//flash.readBlocking(sector, &entry, sizeof(entry));
 	{
 		setOffset(sectorOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
-		if (buffer.size() < sizeof(Entry)) {
+		if (buffer.size() < int(sizeof(Entry))) {
 			// something went wrong
 			entryOffsetResult = -1;
 			co_return;
@@ -506,7 +491,7 @@ AwaitableCoroutine Storage_Buffer::getLastEntry(int sectorOffset, int &entryOffs
 		// read next entry
 		setOffset(sectorOffset + entryOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
-		if (buffer.size() < sizeof(Entry)) {
+		if (buffer.size() < int(sizeof(Entry))) {
 			// something went wrong
 			entryOffsetResult = -1;
 			co_return;
@@ -530,11 +515,10 @@ AwaitableCoroutine Storage_Buffer::getLastEntry(int sectorOffset, int &entryOffs
 	entryOffsetResult = validOffset;
 }
 
-Awaitable<Buffer::State> Storage_Buffer::writeEntry(uint16_t id, uint16_t size) {
+Awaitable<> Storage_Buffer::writeEntry(uint16_t id, uint16_t size) {
 	auto &buffer = this->buffer;
 
 	// create entry
-	//buffer.resize(sizeof(Entry));
 	auto &entry = buffer.value<Entry>();
 	entry.id = id;
 	entry.size = size;
@@ -551,7 +535,7 @@ Awaitable<Buffer::State> Storage_Buffer::writeEntry(uint16_t id, uint16_t size) 
 }
 
 
-Awaitable<Buffer::State> Storage_Buffer::closeSector() {
+Awaitable<> Storage_Buffer::closeSector() {
 	auto &buffer = this->buffer;
 
 	// create entry
@@ -635,11 +619,9 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 	co_await getLastEntry(tailSectorOffset, tailLastEntryOffset);
 	while (tailEntryOffset <= tailLastEntryOffset) {
 		// read entry
-		//Entry entry;
-		//this->flash.readBlocking(tailSector + entryOffset, &entry, sizeof(entry));
 		setOffset(tailSectorOffset + tailEntryOffset, Command::READ);
 		co_await buffer.read(sizeof(Entry));
-		if (buffer.size() < sizeof(Entry)) {
+		if (buffer.size() < int(sizeof(Entry))) {
 			// something went wrong
 			co_return;
 		}
@@ -656,17 +638,15 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 				int searchSectorOffset = searchSectorIndex * this->info.sectorSize;
 
 				// get offset of last entry in allocation table
-				//int lastEntryOffset = getLastEntry(sector);
 				int searchLastEntryOffset;
 				co_await getLastEntry(searchSectorOffset, searchLastEntryOffset);
 
 				// iterate over entries
 				while (searchEntryOffset <= searchLastEntryOffset) {
 					//Entry e;
-					//this->flash.readBlocking(sector + entryOffset, &e, sizeof(e));
 					setOffset(searchSectorOffset + searchEntryOffset, Command::READ);
 					co_await buffer.read(sizeof(Entry));
-					if (buffer.size() < sizeof(Entry)) {
+					if (buffer.size() < int(sizeof(Entry))) {
 						// something went wrong
 						co_return;
 					}
@@ -690,12 +670,11 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 				searchDataOffset = this->info.sectorSize;
 			}
 
-			// not found: copy entry from tail to head
+			// not found: copy entry
 			{
 				int offset = this->dataWriteOffset - align(tailEntry.size, this->info.blockSize);
 				this->dataWriteOffset = offset;
 				int tailOffset = tailSectorOffset + tailEntry.offset;
-				//uint8_t *d = reinterpret_cast<uint8_t *>(data);
 				int s = tailEntry.size;
 				while (s > 0) {
 					int toCopy = std::min(s, buffer.size());
@@ -714,12 +693,6 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 				co_await writeEntry(tailEntry.id, tailEntry.size);
 			}
 found:
-
-			//if (!contains(entry, tailSectorIndex, tailEntryOffset + this->entrySize)) {
-			//	// no: copy it from tail to head
-			//	copyEntry(tailSector, tailEntry);
-			//}
-
 			// set new data offset, only for verification
 			tailDataOffset = tailEntry.offset;
 		}
