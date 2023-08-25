@@ -79,9 +79,9 @@ public:
 	[[nodiscard]] virtual AwaitableCoroutine read(int id, void *data, int &size, Result &result) = 0;
 
 	/// Convenience wrapper for ArrayBuffer
-	template <typename T, int N>
-	[[nodiscard]] AwaitableCoroutine read(int id, ArrayBuffer<T, N> &buffer, Result &result) {
-		buffer.length = N;
+	template <int N>
+	[[nodiscard]] AwaitableCoroutine read(int id, ArrayBuffer<uint8_t, N> &buffer, Result &result) {
+		buffer.length = N; // * sizeof(T);
 		return read(id, buffer.buffer, buffer.length, result);
 	}
 
