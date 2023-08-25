@@ -20,8 +20,7 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 	int sizes[64] = {}; // initialize with zero
 	ArrayBuffer<uint8_t, 128> buffer;
 
-	// determine capacity (number of entries simultaneously in the storag)
-	//auto info = flash.getInfo();
+	// determine capacity (number of entries of size 128 that fit into the storage)
 	int capacity = std::min(((storageInfo.sectorCount - 1) * (storageInfo.sectorSize - 8)) / (128 + 8), int(std::size(sizes))) - 1;
 #ifdef NATIVE
 	std::cout << "capacity: " << capacity << std::endl;
@@ -106,10 +105,8 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 
 	co_await loop.yield();
 	loop.exit();
-
-	// bug
-	co_await loop.yield();
 #else
+	// indicate success
 	while (true) {
 		debug::set(debug::WHITE);
 		co_await loop.sleep(200ms);

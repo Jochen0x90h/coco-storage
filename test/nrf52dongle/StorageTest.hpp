@@ -1,9 +1,9 @@
 #pragma once
 
+#include <coco/Storage_Buffer.hpp>
 #include <coco/platform/Loop_RTC0.hpp>
 #include <coco/platform/Flash_NVMC.hpp>
 #include <coco/board/config.hpp>
-#include <coco/Storage_Buffer.hpp>
 
 
 using namespace coco;
