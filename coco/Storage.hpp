@@ -7,41 +7,45 @@
 namespace coco {
 
 /**
-	Non-volatile storage, can be implemented on top of on-chip flash, external flash or ESP-32/Zephyr NVS
+	Interface for Non-volatile storage, can be implemented on top of flash or other memory types.
+
+	Inspired by ESP-32 and Zephyr
 	ESP-32: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/nvs_flash.html
 	Zephyr: https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html
 */
 class Storage {
 public:
+	/// Storage state
 	enum class State {
 		NOT_MOUNTED,
 		READY,
 		BUSY
 	};
 
+	/// Result
 	enum class Result {
-		// operation completed successfully, also for partial read where the element is larger than the provided buffer
+		/// Operation completed successfully, also for partial read where the element is larger than the provided buffer
 		OK,
 
-		// the storate was not in READY state
+		/// The storate was not in READY state
 		NOT_READY,
 
-		// element was read as zero length because of checksum error
+		/// Element was read as zero length because of checksum error
 		CHECKSUM_ERROR,
 
-		// element was not read or written because the id is invalid
+		/// Element was not read or written because the id is invalid
 		INVALID_ID,
 
-		// element was partially read because the buffer size was exceeded
+		/// element was partially read because the buffer size was exceeded
 		READ_SIZE_EXCEEDED,
 
-		// element was not written because the maximum data size was exceeded
+		/// Element was not written because the maximum data size was exceeded
 		WRITE_SIZE_EXCEEDED,
 
-		// element was not written because storage is full
+		/// Element was not written because storage is full
 		OUT_OF_MEMORY,
 
-		// memory is not usable, e.g. not connected or end of life of flash memory
+		/// Memory is not usable, e.g. not connected or end of life of flash memory
 		FATAL_ERROR
 	};
 
@@ -74,9 +78,10 @@ public:
 	*/
 	[[nodiscard]] virtual AwaitableCoroutine read(int id, void *data, int &size, Result &result) = 0;
 
+	/// Convenience wrapper for ArrayBuffer
 	template <typename T, int N>
 	[[nodiscard]] AwaitableCoroutine read(int id, ArrayBuffer<T, N> &buffer, Result &result) {
-		buffer.length = N * sizeof(T);
+		buffer.length = N;
 		return read(id, buffer.buffer, buffer.length, result);
 	}
 
@@ -99,6 +104,7 @@ public:
 	*/
 	[[nodiscard]] virtual AwaitableCoroutine write(int id, void const *data, int size, Result &result) = 0;
 
+	/// Convenience wrapper for arrays
 	template <typename T>
 	[[nodiscard]] AwaitableCoroutine write(int id, T &array, Result &result) {
 		return write(id, std::data(array), std::size(array) * sizeof(*std::data(array)), result);

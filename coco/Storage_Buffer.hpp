@@ -7,54 +7,57 @@
 namespace coco {
 
 /**
-	Storage working on a buffer with address header such as internal or external flash.
-	Inspired by https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html
+	Storage implementation working on a buffer with address header such as internal or external flash.
+
+	Inspired by Zephyr
+	https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html
 	https://github.com/zephyrproject-rtos/zephyr/blob/main/subsys/fs/nvs/nvs.c
 */
 class Storage_Buffer : public Storage {
 public:
-	// memory type
+	/// Memory type
 	enum class Type : uint8_t {
-		// generic memory (file, eeprom, feram) with 4 address bytes in native byte order
+		/// Generic memory (file, eeprom, feram) with 4 address bytes in native byte order
 		MEM_4N,
 
-		// generic memory (file, eeprom, feram) with 1 command byte and 2 address bytes in big endian byte order
+		/// Generic memory (file, eeprom, feram) with 1 command byte and 2 address bytes in big endian byte order
 		MEM_1C2B,
 
-		// flash with 4 address bytes in native byte order
+		/// Flash with 4 address bytes in native byte order
 		FLASH_4N,
 
-		// flash with 1 command byte and 2 address bytes in big endian byte order
+		/// Flash with 1 command byte and 2 address bytes in big endian byte order
 		FLASH_1C2B,
 	};
 
+	/// Memory command
 	enum class Command {
 		READ = 0,
 		WRITE = 1,
 		ERASE = 2
 	};
 
-	// memory info
+	/// Memory info
 	struct Info {
-		// size of a page that has to be erased at once
+		/// Size of a page that has to be erased at once
 		int pageSize;
 
-		// size of a block that has to be written at once, must be power of 2
+		/// Size of a block that has to be written at once, must be power of 2
 		int blockSize;
 
-		// start address in memory
+		/// Start address in memory
 		uint32_t address;
 
-		// size of a sector
+		/// Size of a sector
 		int sectorSize;
 
-		// number of sectors, at least 2
+		/// Number of sectors, at least 2
 		int sectorCount;
 
-		// memory type
+		/// Memory type
 		Type type;
 
-		// commands for serial memory (read, write, erase)
+		/// Commands for serial memory (read, write, erase)
 		uint8_t commands[3];
 	};
 
@@ -73,7 +76,7 @@ public:
 	using Storage::read;
 	using Storage::write;
 
-	// CRC-16/CCITT-FALSE https://crccalc.com/?crc=12&method=crc16&datatype=ascii&outtype=0
+	/// CRC-16/CCITT-FALSE (https://crccalc.com/?crc=12&method=crc16&datatype=ascii&outtype=0)
 	static uint16_t crc16(const void *data, int size, uint16_t crc = 0xffff);
 
 protected:
