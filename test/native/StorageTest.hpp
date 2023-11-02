@@ -28,5 +28,5 @@ Storage_Buffer::Info storageInfo {
 struct Drivers {
 	Loop_native loop;
 	Flash_File flash{"flash.bin", 16384, PAGE_SIZE, BLOCK_SIZE};
-	Flash_File::Buffer buffer{flash, 256};
+	Flash_File::Buffer buffer{256, flash};
 };

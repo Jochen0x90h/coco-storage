@@ -228,17 +228,17 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 						uint8_t *d = reinterpret_cast<uint8_t *>(data);
 						int s = size;
 						while (s > 0) {
-							int toRead = std::min(s, buffer.size());
+							int toRead = std::min(s, buffer.capacity());
 							setOffset(offset, Command::READ);
 							co_await buffer.read(toRead);
-							int read = buffer.transferred();
+							int read = buffer.size();
 							if (read < toRead) {
 								// something went wrong
 								result = Result::FATAL_ERROR;
 								this->stat = State::READY;
 								co_return;
 							}
-							std::copy(buffer.begin(), buffer.begin() + read, d);
+							std::copy(buffer.data(), buffer.data() + read, d);
 							offset += read;
 							d += read;
 							s -= read;
@@ -325,9 +325,8 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Res
 	auto d = reinterpret_cast<const uint8_t *>(data);
 	int s = size;
 	while (s > 0) {
-		int toWrite = std::min(s, buffer.size());
-		//buffer.resize(toWrite);
-		std::copy(d, d + toWrite, buffer.begin());
+		int toWrite = std::min(s, buffer.capacity());
+		std::copy(d, d + toWrite, buffer.data());
 		setOffset(this->sectorOffset + offset, Command::WRITE);
 		co_await buffer.write(toWrite);
 		offset += toWrite;
@@ -436,7 +435,7 @@ AwaitableCoroutine Storage_Buffer::detectOffsets(int sectorIndex, std::pair<int,
 	int size = dataOffset - entryOffset;
 	int o = entryOffset;
 	while (size > 0) {
-		int toCheck = std::min(size, buffer.size());
+		int toCheck = std::min(size, buffer.capacity());
 
 		setOffset(sectorOffset + o, Command::READ);
 		co_await buffer.read(toCheck);
@@ -589,9 +588,8 @@ AwaitableCoroutine Storage_Buffer::eraseSector(int index) {
 		int s = this->info.sectorSize;
 		int offset = sectorOffset;
 		while (s > 0) {
-			int toWrite = std::min(s, buffer.size());
-			//buffer.resize(toWrite);
-			std::fill(buffer.begin(), buffer.end(), 0xff);
+			int toWrite = std::min(s, buffer.capacity());
+			std::fill(buffer.data(), buffer.data() + buffer.capacity(), 0xff);
 			setOffset(offset, Command::WRITE);
 			co_await buffer.write(toWrite);
 			offset += toWrite;
@@ -677,7 +675,7 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 				int tailOffset = tailSectorOffset + tailEntry.offset;
 				int s = tailEntry.size;
 				while (s > 0) {
-					int toCopy = std::min(s, buffer.size());
+					int toCopy = std::min(s, buffer.capacity());
 					setOffset(tailOffset, Command::READ);
 					co_await buffer.read(toCopy);
 					// todo: check if read successful
