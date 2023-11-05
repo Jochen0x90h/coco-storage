@@ -18,7 +18,7 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 
 	// table of currently stored elements
 	int sizes[64] = {}; // initialize with zero
-	ArrayBuffer<uint8_t, 128> buffer;
+	uint8_t buffer[128];
 
 	// determine capacity (number of entries of size 128 that fit into the storage)
 	int capacity = std::min(((storageInfo.sectorCount - 1) * (storageInfo.sectorSize - 8)) / (128 + 8), int(std::size(sizes))) - 1;
@@ -32,10 +32,15 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 	debug::setBlue();
 #endif
 
-	Storage::Result result;
+	int result;
 
 	// clear storage
 	co_await storage.clear(result);
+	if (result != Storage::OK) {
+		// fail
+		debug::set(debug::RED);
+		co_return;
+	}
 
 	for (int i = 0; i < 10000; ++i) {
 		if (i % 100 == 0) {
@@ -56,7 +61,7 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 			co_await storage.read(id, buffer, result);
 
 			// check data
-			if (buffer.size() != size) {
+			if (result != size) {
 				// fail
 				debug::set(debug::MAGENTA);
 				co_return;
@@ -79,14 +84,13 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 		sizes[index] = size;
 
 		// generate data
-		buffer.resize(size);
 		for (int j = 0; j < size; ++j) {
 			buffer[j] = id + j;
 		}
 
 		// store
-		co_await storage.write(id, buffer, result);
-		if (result != Storage::Result::OK) {
+		co_await storage.write(id, buffer, size, result);
+		if (result != size) {
 			// fail
 			debug::set(debug::YELLOW);
 			co_return;
@@ -95,13 +99,10 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 		//co_await loop.sleep(200ms);
 	}
 
-	// ok
-	debug::set(debug::GREEN);
-
 #ifdef NATIVE
-	// measure time
+	// success: measure time
 	auto end = loop.now();
-	std::cout << int((end - start) / 1s) << "s" << std::endl;
+	std::cout << "Duration: " << int((end - start) / 1s) << "s" << std::endl;
 
 	co_await loop.yield();
 	loop.exit();

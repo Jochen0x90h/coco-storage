@@ -69,10 +69,10 @@ public:
 	}
 
 	const State &state() override;
-	[[nodiscard]] AwaitableCoroutine mount(Result &result) override;
-	[[nodiscard]] AwaitableCoroutine clear(Result &result) override;
-	[[nodiscard]] AwaitableCoroutine read(int id, void *data, int &size, Result &result) override;
-	[[nodiscard]] AwaitableCoroutine write(int id, const void *data, int size, Result &result) override;
+	[[nodiscard]] AwaitableCoroutine mount(int &result) override;
+	[[nodiscard]] AwaitableCoroutine clear(int &result) override;
+	[[nodiscard]] AwaitableCoroutine read(int id, void *data, int size, int &result) override;
+	[[nodiscard]] AwaitableCoroutine write(int id, void const *data, int size, int &result) override;
 	using Storage::read;
 	using Storage::write;
 

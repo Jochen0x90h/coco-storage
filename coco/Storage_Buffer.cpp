@@ -9,7 +9,7 @@ const Storage::State &Storage_Buffer::state() {
 	return this->stat;
 }
 
-AwaitableCoroutine Storage_Buffer::mount(Result &result) {
+AwaitableCoroutine Storage_Buffer::mount(int &result) {
 	this->stat = State::BUSY;
 	auto &buffer = this->buffer;
 	co_await buffer.acquire();
@@ -146,7 +146,7 @@ AwaitableCoroutine Storage_Buffer::mount(Result &result) {
 	}
 }
 
-AwaitableCoroutine Storage_Buffer::clear(Result &result) {
+AwaitableCoroutine Storage_Buffer::clear(int &result) {
 	this->stat = State::BUSY;
 
 	co_await this->buffer.acquire();
@@ -164,16 +164,16 @@ AwaitableCoroutine Storage_Buffer::clear(Result &result) {
 	this->entryWriteOffset = this->entrySize;
 	this->dataWriteOffset = this->info.sectorSize;
 
-	result = Result::OK;
+	result = OK;
 	this->stat = State::READY;
 }
 
-AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &result) {
+AwaitableCoroutine Storage_Buffer::read(int id, void *data, int size, int &result) {
 	// check state
 	if (this->stat != State::READY) {
 		assert(false);
 		size = 0;
-		result = Result::NOT_READY;
+		result = NOT_READY;
 		co_return;
 	}
 
@@ -181,7 +181,7 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 	if (uint32_t(id) > 0xffff) {
 		assert(false);
 		size = 0;
-		result = Result::INVALID_ID;
+		result = INVALID_ID;
 		co_return;
 	}
 	this->stat = State::BUSY;
@@ -203,7 +203,7 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 			co_await buffer.read(sizeof(Entry));
 			if (buffer.size() < int(sizeof(Entry))) {
 				// something went wrong
-				result = Result::FATAL_ERROR;
+				result = FATAL_ERROR;
 				this->stat = State::READY;
 				co_return;
 			}
@@ -213,20 +213,22 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 			if (isEntryValid(entryOffset, dataOffset, entry)) {
 				// check if found
 				if (entry.id == id) {
-					result = Result::OK;
-					if (data != nullptr) {
+					//result = Result::OK;
+					//if (data != nullptr) {
 						// determine size
-						if (entry.size > size) {
+						int entrySize = int(entry.size);
+						int s = std::min(size, entrySize);
+						//size = s;
+						/*if (entry.size > size) {
 							// data does not fit into the provided buffer
 							result = Result::READ_SIZE_EXCEEDED;
 						} else {
 							size = entry.size;
-						}
+						}*/
 
 						// read data
 						int offset = sectorOffset + entry.offset;
 						uint8_t *d = reinterpret_cast<uint8_t *>(data);
-						int s = size;
 						while (s > 0) {
 							int toRead = std::min(s, buffer.capacity());
 							setOffset(offset, Command::READ);
@@ -234,8 +236,8 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 							int read = buffer.size();
 							if (read < toRead) {
 								// something went wrong
-								result = Result::FATAL_ERROR;
 								this->stat = State::READY;
+								result = FATAL_ERROR;
 								co_return;
 							}
 							std::copy(buffer.data(), buffer.data() + read, d);
@@ -244,13 +246,14 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 							s -= read;
 						}
 						this->stat = State::READY;
+						result = entrySize;
 						co_return;
-					} else {
+					/*} else {
 						// data is nullptr: return size of element
 						size = entry.size;
 						this->stat = State::READY;
 						co_return;
-					}
+					}*/
 				}
 			}
 			entryOffset -= this->entrySize;
@@ -269,30 +272,30 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int &size, Result &r
 	}
 
 	// not found (which is ok)
-	size = 0;
-	result = Result::OK;
+	//size = 0;
 	this->stat = State::READY;
+	result = 0;
 }
 
-AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Result &result) {
+AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, int &result) {
 	// check state
 	if (this->stat != State::READY) {
 		assert(false);
-		result = Result::NOT_READY;
+		result = NOT_READY;
 		co_return;
 	}
 
 	// check id
 	if (uint32_t(id) > 0xffff) {
 		assert(false);
-		result = Result::INVALID_ID;
+		result = INVALID_ID;
 		co_return;
 	}
 
 	// check size, must fit into a sector which has at least two entries (one for the single entry and one for closing)
 	if (uint32_t(size) > uint32_t(this->info.sectorSize - this->entrySize * 2)) {
 		assert(false);
-		result = Result::WRITE_SIZE_EXCEEDED;
+		result = WRITE_SIZE_EXCEEDED;
 		co_return;
 	}
 	this->stat = State::BUSY;
@@ -309,7 +312,7 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Res
 		// check if all sectors were already garbage collected which means we are out of memory
 		++gcCount;
 		if (gcCount >= this->info.sectorCount) {
-			result = Result::OUT_OF_MEMORY;
+			result = OUT_OF_MEMORY;
 			co_return;
 		}
 
@@ -337,7 +340,7 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, Res
 	// write entry
 	co_await writeEntry(id, size);
 
-	result = Result::OK;
+	result = size;
 	this->stat = State::READY;
 }
 
