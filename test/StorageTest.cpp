@@ -9,8 +9,8 @@
 
 using namespace coco;
 
-Coroutine test(Loop &loop, Buffer &buffer2) {
-	Storage_Buffer storage(storageInfo, buffer2);
+Coroutine test(Loop &loop, Buffer &flashBuffer) {
+	Storage_Buffer storage(storageInfo, flashBuffer);
 
 	// random generator for random data
 	KissRandom random;
@@ -51,6 +51,29 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 #endif
 		}
 
+
+		// random size in range [0, 128]
+		int size = random.draw() % 129;
+
+		// generate id in range [5, capacity + 4]
+		int index = random.draw() % capacity;
+		int id = index + 5;
+		sizes[index] = size;
+
+		// generate data
+		for (int j = 0; j < size; ++j) {
+			buffer[j] = id + j;
+		}
+
+		// store
+		co_await storage.write(id, buffer, size, result);
+		if (result != size) {
+			// fail
+			debug::set(debug::YELLOW);
+			co_return;
+		}
+
+
 		// check if everything is correctly stored
 		for (int index = 0; index < capacity; ++index) {
 			// get stored size
@@ -75,32 +98,44 @@ Coroutine test(Loop &loop, Buffer &buffer2) {
 			}
 		}
 
-		// random size in range [0, 128]
-		int size = random.draw() % 129;
-
-		// generate id in range [5, capacity + 4]
-		int index = random.draw() % capacity;
-		int id = index + 5;
-		sizes[index] = size;
-
-		// generate data
-		for (int j = 0; j < size; ++j) {
-			buffer[j] = id + j;
-		}
-
-		// store
-		co_await storage.write(id, buffer, size, result);
-		if (result != size) {
+		// mount storage again and check if everything is correctly stored
+		co_await storage.mount(result);
+		if (result != Storage::OK) {
 			// fail
-			debug::set(debug::YELLOW);
+			debug::set(debug::BLUE);
 			co_return;
+		}
+		for (int index = 0; index < capacity; ++index) {
+			// get stored size
+			int size = sizes[index];
+			int id = index + 5;
+
+			// read data
+			co_await storage.read(id, buffer, result);
+
+			// check data
+			if (result != size) {
+				// fail
+				debug::set(debug::MAGENTA);
+				co_return;
+			}
+			for (int j = 0; j < size; ++j) {
+				if (buffer[j] != uint8_t(id + j)) {
+					// fail
+					debug::set(debug::CYAN);
+					co_return;
+				}
+			}
 		}
 
 		//co_await loop.sleep(200ms);
 	}
 
 #ifdef NATIVE
-	// success: measure time
+	// success
+	std::cout << "Success!" << std::endl;
+
+	// measure duration
 	auto end = loop.now();
 	std::cout << "Duration: " << int((end - start) / 1s) << "s" << std::endl;
 

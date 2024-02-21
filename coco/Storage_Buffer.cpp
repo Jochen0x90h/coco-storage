@@ -5,6 +5,25 @@
 
 namespace coco {
 
+Storage_Buffer::Storage_Buffer(const Info &info, Buffer &buffer)
+	: info(info), buffer(buffer)
+{
+	// calculate the size of an allocation table entry
+	this->entrySize = int(sizeof(Entry) + info.blockSize - 1) & ~(info.blockSize - 1);
+
+	// set header size of the buffer
+	switch (info.type) {
+	case Type::MEM_4N:
+	case Type::FLASH_4N:
+		this->buffer.headerResize(4);
+		break;
+	case Type::MEM_1C2B:
+	case Type::FLASH_1C2B:
+		this->buffer.headerResize(3);
+		break;
+	}
+}
+
 const Storage::State &Storage_Buffer::state() {
 	return this->stat;
 }
@@ -100,7 +119,7 @@ AwaitableCoroutine Storage_Buffer::mount(int &result) {
 		lastState = sectorState;
 	}
 
-	// make sure the next sector is empty which is not the case when copy of tail to empty sector was interrupted
+	// make sure the next sector is empty which is not the case when copying of tail to empty sector was interrupted
 	int next = head + 1 == this->info.sectorCount ? 0 : head + 1;
 	co_await eraseSector(next);
 
@@ -144,6 +163,8 @@ AwaitableCoroutine Storage_Buffer::mount(int &result) {
 
 		break;
 	}
+	result = OK;
+	this->stat = State::READY;
 }
 
 AwaitableCoroutine Storage_Buffer::clear(int &result) {
@@ -230,7 +251,9 @@ AwaitableCoroutine Storage_Buffer::read(int id, void *data, int size, int &resul
 						int offset = sectorOffset + entry.offset;
 						uint8_t *d = reinterpret_cast<uint8_t *>(data);
 						while (s > 0) {
-							int toRead = std::min(s, buffer.capacity());
+							int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+							int toRead = std::min(s, capacity);
+
 							setOffset(offset, Command::READ);
 							co_await buffer.read(toRead);
 							int read = buffer.size();
@@ -328,9 +351,11 @@ AwaitableCoroutine Storage_Buffer::write(int id, const void *data, int size, int
 	auto d = reinterpret_cast<const uint8_t *>(data);
 	int s = size;
 	while (s > 0) {
-		int toWrite = std::min(s, buffer.capacity());
-		std::copy(d, d + toWrite, buffer.data());
+		int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+		int toWrite = std::min(s, capacity);
+
 		setOffset(this->sectorOffset + offset, Command::WRITE);
+		std::copy(d, d + toWrite, buffer.data());
 		co_await buffer.write(toWrite);
 		offset += toWrite;
 		d += toWrite;
@@ -373,16 +398,15 @@ void Storage_Buffer::setOffset(uint32_t offset, Command command) {
 	switch (this->info.type) {
 	case Type::MEM_4N:
 	case Type::FLASH_4N:
-		this->buffer.setHeader(offset);
+		this->buffer.header<uint32_t>() = offset;
 		break;
 	case Type::MEM_1C2B:
 	case Type::FLASH_1C2B:
 		{
-			uint8_t header[3];
+			uint8_t *header = this->buffer.headerData();
 			header[0] = this->info.commands[int(command)];
 			header[1] = offset >> 8;
 			header[2] = offset;
-			this->buffer.setHeader(header);
 		}
 		break;
 	}
@@ -438,7 +462,8 @@ AwaitableCoroutine Storage_Buffer::detectOffsets(int sectorIndex, std::pair<int,
 	int size = dataOffset - entryOffset;
 	int o = entryOffset;
 	while (size > 0) {
-		int toCheck = std::min(size, buffer.capacity());
+		int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+		int toCheck = std::min(size, capacity);
 
 		setOffset(sectorOffset + o, Command::READ);
 		co_await buffer.read(toCheck);
@@ -520,6 +545,11 @@ AwaitableCoroutine Storage_Buffer::getLastEntry(int sectorOffset, int &entryOffs
 Awaitable<> Storage_Buffer::writeEntry(uint16_t id, uint16_t size) {
 	auto &buffer = this->buffer;
 
+	// set offset and advance entry write offset
+	int offset = this->sectorOffset + this->entryWriteOffset;
+	setOffset(offset, Command::WRITE);
+	this->entryWriteOffset += this->entrySize;
+
 	// create entry
 	auto &entry = buffer.value<Entry>();
 	entry.id = id;
@@ -527,12 +557,7 @@ Awaitable<> Storage_Buffer::writeEntry(uint16_t id, uint16_t size) {
 	entry.offset = this->dataWriteOffset;
 	entry.checksum = calcChecksum(entry);
 
-	// get offset and advance entry write offset
-	int offset = this->sectorOffset + this->entryWriteOffset;
-	this->entryWriteOffset += this->entrySize;
-
 	// write entry
-	setOffset(offset, Command::WRITE);
 	return buffer.write(sizeof(Entry));
 }
 
@@ -591,8 +616,10 @@ AwaitableCoroutine Storage_Buffer::eraseSector(int index) {
 		int s = this->info.sectorSize;
 		int offset = sectorOffset;
 		while (s > 0) {
-			int toWrite = std::min(s, buffer.capacity());
-			std::fill(buffer.data(), buffer.data() + buffer.capacity(), 0xff);
+			int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+			int toWrite = std::min(s, capacity);
+
+			std::fill(buffer.data(), buffer.data() + capacity, 0xff);
 			setOffset(offset, Command::WRITE);
 			co_await buffer.write(toWrite);
 			offset += toWrite;
@@ -678,7 +705,9 @@ AwaitableCoroutine Storage_Buffer::gc(int emptySectorIndex) {
 				int tailOffset = tailSectorOffset + tailEntry.offset;
 				int s = tailEntry.size;
 				while (s > 0) {
-					int toCopy = std::min(s, buffer.capacity());
+					int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+					int toCopy = std::min(s, capacity);
+
 					setOffset(tailOffset, Command::READ);
 					co_await buffer.read(toCopy);
 					// todo: check if read successful

@@ -61,12 +61,7 @@ public:
 		uint8_t commands[3];
 	};
 
-	Storage_Buffer(const Info &info, Buffer &buffer)
-		: info(info), buffer(buffer)
-	{
-		// calculate the size of an allocation table entry
-		this->entrySize = int(sizeof(Entry) + info.blockSize - 1) & ~(info.blockSize - 1);
-	}
+	Storage_Buffer(const Info &info, Buffer &buffer);
 
 	const State &state() override;
 	[[nodiscard]] AwaitableCoroutine mount(int &result) override;
