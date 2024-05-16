@@ -32,7 +32,7 @@ public:
 		/// Element was read as zero length because of checksum error
 		CHECKSUM_ERROR = -2,
 
-		/// Element was not read or written because the id is invalid
+		/// Element was not read or written because the id is invalid (> 65535)
 		INVALID_ID = -3,
 
 		/// Element was not written because the maximum data size was exceeded
@@ -61,7 +61,7 @@ public:
 
 
 	/**
-		Clear all elements in the non-volatile storage
+		Clear all elements in the non-volatile storage. Calling mount() is not necessary after clear.
 		@return use co_await on return value to await completion
 	*/
 	[[nodiscard]] virtual AwaitableCoroutine clear(int &result) = 0;

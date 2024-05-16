@@ -1,15 +1,11 @@
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME}
 	PUBLIC FILE_SET headers TYPE HEADERS FILES
-		#Storage.hpp
-		#Storage_Flash.hpp
 		Storage.hpp
-		Storage_Buffer.hpp
+		BufferStorage.hpp
 	PRIVATE
-		#Storage.cpp
-		#Storage_Flash.cpp
 		Storage.cpp
-		Storage_Buffer.cpp
+		BufferStorage.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

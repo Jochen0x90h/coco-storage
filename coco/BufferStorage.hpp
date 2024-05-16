@@ -13,7 +13,7 @@ namespace coco {
 	https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html
 	https://github.com/zephyrproject-rtos/zephyr/blob/main/subsys/fs/nvs/nvs.c
 */
-class Storage_Buffer : public Storage {
+class BufferStorage : public Storage {
 public:
 	/// Memory type
 	enum class Type : uint8_t {
@@ -61,7 +61,7 @@ public:
 		uint8_t commands[3];
 	};
 
-	Storage_Buffer(const Info &info, Buffer &buffer);
+	BufferStorage(const Info &info, Buffer &buffer);
 
 	const State &state() override;
 	[[nodiscard]] AwaitableCoroutine mount(int &result) override;
@@ -116,8 +116,8 @@ protected:
 	// get the offset of the last entry in a closed sector
 	AwaitableCoroutine getLastEntry(int sectorOffset, int &entryOffsetResult);
 
-	// write an entry (without data)
-	Awaitable<> writeEntry(uint16_t id, uint16_t size);
+	// write an entry (without data unless size is up to 2)
+	Awaitable<> writeEntry(int id, int size, const uint8_t *data);
 
 	// close the current sector
 	Awaitable<> closeSector();
@@ -135,8 +135,13 @@ protected:
 	AwaitableCoroutine gc(int emptySectorIndex);
 
 
+	// memory info
 	Info info;
+
+	// buffer for reading/writing on memory
 	Buffer &buffer;
+
+	// size of allocation table entry (union Entry) aligned to flash block size
 	int entrySize;
 
 	State stat = State::NOT_MOUNTED;

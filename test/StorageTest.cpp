@@ -1,4 +1,4 @@
-#include <coco/Storage_Buffer.hpp>
+#include <coco/BufferStorage.hpp>
 #include <coco/debug.hpp>
 #include <coco/PseudoRandom.hpp>
 #include <StorageTest.hpp>
@@ -10,7 +10,7 @@
 using namespace coco;
 
 Coroutine test(Loop &loop, Buffer &flashBuffer) {
-	Storage_Buffer storage(storageInfo, flashBuffer);
+	BufferStorage storage(storageInfo, flashBuffer);
 
 	// random generator for random data
 	KissRandom random;
@@ -52,13 +52,15 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 		}
 
 
-		// random size in range [0, 128]
+		// generate random size in range [0, 128]
 		int size = random.draw() % 129;
 
-		// generate id in range [5, capacity + 4]
+		// generate random index range [0, capacity -1]
 		int index = random.draw() % capacity;
-		int id = index + 5;
 		sizes[index] = size;
+
+		// generate id from index
+		int id = index + 5;
 
 		// generate data
 		for (int j = 0; j < size; ++j) {
@@ -80,15 +82,17 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 			int size = sizes[index];
 			int id = index + 5;
 
-			// read data
+			// read data (reads as zero length if id does not exist)
 			co_await storage.read(id, buffer, result);
 
-			// check data
+			// check size
 			if (result != size) {
 				// fail
 				debug::set(debug::MAGENTA);
 				co_return;
 			}
+
+			// check data
 			for (int j = 0; j < size; ++j) {
 				if (buffer[j] != uint8_t(id + j)) {
 					// fail
@@ -98,7 +102,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 			}
 		}
 
-		// mount storage again and check if everything is correctly stored
+		// mount storage and check again if everything is correctly stored
 		co_await storage.mount(result);
 		if (result != Storage::OK) {
 			// fail
@@ -113,12 +117,14 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 			// read data
 			co_await storage.read(id, buffer, result);
 
-			// check data
+			// check size
 			if (result != size) {
 				// fail
 				debug::set(debug::MAGENTA);
 				co_return;
 			}
+
+			// check data
 			for (int j = 0; j < size; ++j) {
 				if (buffer[j] != uint8_t(id + j)) {
 					// fail

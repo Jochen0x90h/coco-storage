@@ -2,7 +2,7 @@
 
 #include <coco/platform/Loop_native.hpp>
 #include <coco/platform/Flash_File.hpp>
-#include <coco/Storage_Buffer.hpp>
+#include <coco/BufferStorage.hpp>
 
 
 using namespace coco;
@@ -14,13 +14,13 @@ using namespace coco;
 constexpr int PAGE_SIZE = 2048;
 constexpr int BLOCK_SIZE = 8;
 
-Storage_Buffer::Info storageInfo {
+BufferStorage::Info storageInfo {
 	PAGE_SIZE,
 	BLOCK_SIZE,
 	0, // address
 	8192, // sector size
 	2, // sector count
-	Storage_Buffer::Type::MEM_4N
+	BufferStorage::Type::MEM_4N
 };
 
 

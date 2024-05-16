@@ -4,7 +4,7 @@ function(board_test TEST TARGET)
 	if(TARGET ${TARGET})
 		string(REGEX REPLACE ".*\\:" "" BOARD ${TARGET})
 		set(NAME "${TEST}-${BOARD}")
-		message("*** Board: ${BOARD}")
+		message("*** Test ${TEST} on board ${BOARD}")
 
 		add_executable(${NAME}
 			${TEST}.cpp
