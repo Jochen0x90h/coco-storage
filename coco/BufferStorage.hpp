@@ -2,12 +2,14 @@
 
 #include "Storage.hpp"
 #include <coco/Buffer.hpp>
+#include <coco/Semaphore.hpp>
 
 
 namespace coco {
 
 /**
 	Storage implementation working on a buffer with address header such as internal or external flash.
+	Multiple coroutines can use it at the same time, a semaphore makes sure that only one modification is done at a time
 
 	Inspired by Zephyr
 	https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html
@@ -90,7 +92,7 @@ protected:
 			// size of data
 			uint16_t size;
 
-			// offset of data in sector
+			// offset of data in sector or data if size <= 2
 			uint16_t offset;
 
 			// checksum of the entry
@@ -153,6 +155,8 @@ protected:
 	// write offsets in current sector
 	int entryWriteOffset;
 	int dataWriteOffset;
+
+	Semaphore semaphore;
 };
 
 } // namespace coco

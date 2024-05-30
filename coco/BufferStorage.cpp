@@ -8,7 +8,7 @@
 namespace coco {
 
 BufferStorage::BufferStorage(const Info &info, Buffer &buffer)
-	: info(info), buffer(buffer)
+	: info(info), buffer(buffer), semaphore(1)
 {
 	// align size of allocation table entry to flash block size
 	this->entrySize = int(sizeof(Entry) + info.blockSize - 1) & ~(info.blockSize - 1);
@@ -31,6 +31,10 @@ const Storage::State &BufferStorage::state() {
 }
 
 AwaitableCoroutine BufferStorage::mount(int &result) {
+	// acquire semaphore
+	co_await this->semaphore.wait();
+	Semaphore::Guard guard(this->semaphore);
+
 	this->stat = State::BUSY;
 	auto &buffer = this->buffer;
 	co_await buffer.acquire();
@@ -171,6 +175,10 @@ AwaitableCoroutine BufferStorage::mount(int &result) {
 }
 
 AwaitableCoroutine BufferStorage::clear(int &result) {
+	// acquire semaphore
+	co_await this->semaphore.wait();
+	Semaphore::Guard guard(this->semaphore);
+
 	this->stat = State::BUSY;
 
 	co_await this->buffer.acquire();
@@ -193,6 +201,10 @@ AwaitableCoroutine BufferStorage::clear(int &result) {
 }
 
 AwaitableCoroutine BufferStorage::read(int id, void *data, int size, int &result) {
+	// acquire semaphore
+	co_await this->semaphore.wait();
+	Semaphore::Guard guard(this->semaphore);
+
 	// check state
 	if (this->stat != State::READY) {
 		assert(false);
@@ -295,6 +307,10 @@ AwaitableCoroutine BufferStorage::read(int id, void *data, int size, int &result
 }
 
 AwaitableCoroutine BufferStorage::write(int id, const void *data, int size, int &result) {
+	// acquire semaphore
+	co_await this->semaphore.wait();
+	Semaphore::Guard guard(this->semaphore);
+
 	// check state
 	if (this->stat != State::READY) {
 		assert(false);
