@@ -9,9 +9,9 @@
 using namespace coco;
 
 BufferStorage::Info storageInfo{
-	Flash_NVMC::PAGE_SIZE,
-	Flash_NVMC::BLOCK_SIZE,
 	FLASH_ADDRESS + 0xe0000 - 8192 * 2, // address
+	Flash_NVMC::BLOCK_SIZE,
+	Flash_NVMC::PAGE_SIZE,
 	8192, // sector size
 	2, // sector count
 	BufferStorage::Type::FLASH_4N

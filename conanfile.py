@@ -23,7 +23,7 @@ class Project(ConanFile):
         return False
 
     def requirements(self):
-        self.requires("coco-buffer/pow10", options={"platform": self.options.platform})
+        self.requires("coco-device/pow10", options={"platform": self.options.platform})
 
     def build_requirements(self):
         self.tool_requires("coco-toolchain/pow10", options={"platform": self.options.platform})
