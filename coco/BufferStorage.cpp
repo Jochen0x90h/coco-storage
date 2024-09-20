@@ -8,6 +8,10 @@
 
 namespace coco {
 
+// small entries where data can be stored in the entry
+constexpr int SMALL_SIZE = 3;
+constexpr int SMALL_FLAG = 0x80;
+
 BufferStorage::BufferStorage(const Info &info, Buffer &buffer)
     : info(info), buffer(buffer), semaphore(1)
 {
@@ -216,6 +220,11 @@ AwaitableCoroutine BufferStorage::read(int id, void *data, int size, int &result
     co_await this->semaphore.untilAcquired();
     Semaphore::Guard guard(this->semaphore);
 
+    uint8_t *dst = reinterpret_cast<uint8_t *>(data);
+
+    // fill data with zeros
+    std::fill(dst, dst + size, 0);
+
     // check state
     if (this->stat != State::READY) {
         assert(false);
@@ -260,13 +269,12 @@ AwaitableCoroutine BufferStorage::read(int id, void *data, int size, int &result
             if (isEntryValid(entryOffset, dataOffset, entry)) {
                 // check if found
                 if (entry.id == id) {
-                    // determine size
-                    int dataSize = int(entry.size);
-                    int s = std::min(size, dataSize);
-                    uint8_t *dst = reinterpret_cast<uint8_t *>(data);
-
                     // read data
-                    if (dataSize > 2) {
+                    if ((entry.small.size & SMALL_FLAG) == 0) {
+                        // not a small entry
+                        int dataSize = entry.size;
+                        int s = std::min(size, dataSize);
+
                         // calc offset in memory (offset of sector + offset of entry)
                         int offset = sectorOffset + (entry.offset << this->offsetShift);
                         while (s > 0) {
@@ -287,13 +295,15 @@ AwaitableCoroutine BufferStorage::read(int id, void *data, int size, int &result
                             dst += read;
                             s -= read;
                         }
+                        result = dataSize;
                     } else {
-                        // data size up to 2 is stored in offset
-                        uint8_t *src = reinterpret_cast<uint8_t *>(&entry.offset);
-                        std::copy(src, src + s, dst);
+                        // small entry with inline data
+                        int dataSize = entry.small.size & 3;
+                        int s = std::min(size, dataSize);
+                        std::copy(entry.small.data, entry.small.data + s, dst);
+                        result = dataSize;
                     }
                     this->stat = State::READY;
-                    result = dataSize;
                     co_return;
                 }
             }
@@ -368,7 +378,7 @@ AwaitableCoroutine BufferStorage::write(int id, const void *data, int size, int 
 
     // write data
     auto src = reinterpret_cast<const uint8_t *>(data);
-    if (size > 2) {
+    if (size > SMALL_SIZE) {
         int offset = this->dataWriteOffset - align(size, this->info.blockSize);
         this->dataWriteOffset = offset;
         int s = size;
@@ -385,7 +395,7 @@ AwaitableCoroutine BufferStorage::write(int id, const void *data, int size, int 
         }
     }
 
-    // write entry
+    // write entry (with inline data if size <= SMALL_SIZE)
     co_await writeEntry(id, size, src);
 
     result = size;
@@ -440,12 +450,8 @@ bool BufferStorage::isEntryValid(int entryOffset, int dataOffset, const Entry &e
     if (entry.checksum != calcChecksum(entry))
         return false;
 
-    if (entry.size > 2) {
-        // check if offset is aligned to block size (which is power of two)
-        //if ((entry.offset & (this->info.blockSize - 1)) != 0)
-        //    return false;
-
-        // check if data is in valid range
+    if ((entry.small.size & SMALL_FLAG) == 0) {
+        // not a small entry: check if data is in valid range
         int offset = entry.offset << this->offsetShift;
         if (offset < entryOffset + this->entrySize || offset + entry.size > dataOffset)
             return false;
@@ -476,7 +482,7 @@ AwaitableCoroutine BufferStorage::detectOffsets(int sectorIndex, std::pair<int, 
             break;
 
         // check if entry is valid
-        if (isEntryValid(entryOffset, dataOffset, entry) && entry.size > 2) {
+        if (isEntryValid(entryOffset, dataOffset, entry) && (entry.small.size & SMALL_FLAG) == 0) {
             // set new data offset
             dataOffset = entry.offset << this->offsetShift;
         }
@@ -559,7 +565,7 @@ AwaitableCoroutine BufferStorage::getLastEntry(int sectorOffset, int &entryOffse
         if (isEntryValid(entryOffset, dataOffset, entry)) {
             validOffset = entryOffset;
 
-            if (entry.size > 2) {
+            if (entry.size > SMALL_SIZE) {
                 // set new data offset
                 dataOffset = entry.offset << this->offsetShift;
             }
@@ -581,13 +587,14 @@ Awaitable<Buffer::Events> BufferStorage::writeEntry(int id, int size, const uint
     // create entry
     auto &entry = buffer.value<Entry>();
     entry.id = id;
-    entry.size = size;
-    if (size > 2) {
+    if (size > SMALL_SIZE) {
+        entry.size = size;
         entry.offset = this->dataWriteOffset >> this->offsetShift;
     } else {
-        entry.offset = 0;
-        uint8_t *dst = reinterpret_cast<uint8_t *>(&entry.offset);
-        std::copy(data, data + size, dst);
+        // small entry: inline data
+        entry.small.size = SMALL_FLAG | size;
+        std::copy(data, data + size, entry.small.data);
+        std::fill(entry.small.data + size, entry.small.data + 3, 0xff); // fill unused bytes with 0xff to reduce flash wear
     }
     entry.checksum = calcChecksum(entry);
 
@@ -628,10 +635,6 @@ bool BufferStorage::isCloseEntryValid(const Entry &entry) {
     // check if index is 0xffff and length is 0
     if (entry.id != 0xffff && entry.size != 0)
         return false;
-
-    // check if offset of last entry is a multiple of entry size (which is power of two)
-    //if ((entry.offset & (this->entrySize - 1)) != 0)
-    //    return false;
 
     // check if there is at least one entry and the offset is inside the sector
     int offset = entry.offset << this->offsetShift;
@@ -690,7 +693,7 @@ AwaitableCoroutine BufferStorage::gc(int emptySectorIndex) {
         Entry tailEntry = buffer.value<Entry>();
 
         if (isEntryValid(tailEntryOffset, tailDataOffset, tailEntry)) {
-            if (tailEntry.size > 2) {
+            if (tailEntry.size > SMALL_SIZE) {
                 // set new data offset, only for verification
                 tailDataOffset = tailEntry.offset << this->offsetShift;
             }
@@ -724,7 +727,7 @@ AwaitableCoroutine BufferStorage::gc(int emptySectorIndex) {
                         if (searchEntry.id == tailEntry.id)
                             goto found;
 
-                        if (searchEntry.size > 2) {
+                        if (searchEntry.size > SMALL_SIZE) {
                             // set new data offset
                             searchDataOffset = searchEntry.offset << this->offsetShift;
                         }
@@ -740,31 +743,36 @@ AwaitableCoroutine BufferStorage::gc(int emptySectorIndex) {
 
             // not found: copy entry if it has size > 0
             {
-                int s = tailEntry.size;
-                if (s > 0) {
-                    if (s > 2) {
-                        int offset = this->dataWriteOffset - align(s, this->info.blockSize);
-                        this->dataWriteOffset = offset;
-                        int tailOffset = tailSectorOffset + tailDataOffset;
-                        while (s > 0) {
-                            int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
-                            int toCopy = std::min(s, capacity);
+                int dataSize;
+                if ((tailEntry.small.size & SMALL_FLAG) == 0) {
+                    // not a small entry: copy data
+                    dataSize = tailEntry.size;
+                    int offset = this->dataWriteOffset - align(dataSize, this->info.blockSize);
+                    this->dataWriteOffset = offset;
+                    int tailOffset = tailSectorOffset + tailDataOffset;
+                    int s = dataSize;
+                    while (s > 0) {
+                        int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+                        int toCopy = std::min(s, capacity);
 
-                            setOffset(tailOffset, Command::READ);
-                            co_await buffer.read(toCopy);
-                            // todo: check if read successful
+                        setOffset(tailOffset, Command::READ);
+                        co_await buffer.read(toCopy);
+                        // todo: check if read successful
 
-                            setOffset(this->sectorOffset + offset, Command::WRITE);
-                            co_await buffer.write(toCopy);
-                            tailOffset += toCopy;
-                            offset += toCopy;
-                            s -= toCopy;
-                        }
+                        setOffset(this->sectorOffset + offset, Command::WRITE);
+                        co_await buffer.write(toCopy);
+                        tailOffset += toCopy;
+                        offset += toCopy;
+                        s -= toCopy;
                     }
-
-                    // write entry
-                    co_await writeEntry(tailEntry.id, tailEntry.size, reinterpret_cast<uint8_t *>(&tailEntry.offset));
+                } else {
+                    // small entry
+                    dataSize = tailEntry.small.size & 3;
                 }
+
+                // write entry if not empty (with inline data if tailEntry.size <= SMALL_SIZE)
+                if (dataSize > 0)
+                    co_await writeEntry(tailEntry.id, dataSize, tailEntry.small.data);
             }
 found:
             ;

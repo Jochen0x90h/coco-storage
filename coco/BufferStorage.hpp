@@ -89,17 +89,43 @@ protected:
             // id of entry
             uint16_t id;
 
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
             // size of data
             uint16_t size;
 
             // offset of data in sector or data if size <= 2
             uint16_t offset;
+#else
+            // offset of data in sector or data if size <= 2
+            uint16_t offset;
 
+            // size of data
+            uint16_t size;
+#endif
             // checksum of the entry
             uint16_t checksum;
         };
+
+        struct {
+            uint16_t id;
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+            // inline data
+            uint8_t data[3];
+
+            // size of inline data, must be mapped to upper byte of offset
+            uint8_t size;
+#else
+            // size of inline data, must be mapped to upper byte of offset
+            uint8_t size;
+
+            // inline data
+            uint8_t data[3];
+#endif
+            uint16_t checksum;
+        } small;
+
         uint32_t data[2];
-        uint8_t data8[8];
 
         bool empty() {return (this->data[0] & this->data[1]) == 0xffffffff;}
     };
