@@ -1,6 +1,6 @@
 #pragma once
 
-#include <coco/Storage_Buffer.hpp>
+#include <coco/BufferStorage.hpp>
 #include <coco/platform/Loop_RTC0.hpp>
 #include <coco/platform/Flash_NVMC.hpp>
 #include <coco/board/config.hpp>
@@ -8,13 +8,13 @@
 
 using namespace coco;
 
-Storage_Buffer::Info storageInfo{
-	Flash_NVMC::PAGE_SIZE,
-	Flash_NVMC::BLOCK_SIZE,
+BufferStorage::Info storageInfo{
 	FLASH_ADDRESS + 0xe0000 - 8192 * 2, // address
+	Flash_NVMC::BLOCK_SIZE,
+	Flash_NVMC::PAGE_SIZE,
 	8192, // sector size
 	2, // sector count
-	Storage_Buffer::Type::FLASH_4N
+	BufferStorage::Type::FLASH_4N
 };
 
 

@@ -2,25 +2,25 @@
 
 #include <coco/platform/Loop_native.hpp>
 #include <coco/platform/Flash_File.hpp>
-#include <coco/Storage_Buffer.hpp>
+#include <coco/BufferStorage.hpp>
 
 
 using namespace coco;
 
-//constexpr int PAGE_SIZE = 1024;
 //constexpr int BLOCK_SIZE = 2;
-//constexpr int PAGE_SIZE = 4096;
+//constexpr int PAGE_SIZE = 1024;
 //constexpr int BLOCK_SIZE = 4;
-constexpr int PAGE_SIZE = 2048;
+//constexpr int PAGE_SIZE = 4096;
 constexpr int BLOCK_SIZE = 8;
+constexpr int PAGE_SIZE = 2048;
 
-Storage_Buffer::Info storageInfo {
-	PAGE_SIZE,
-	BLOCK_SIZE,
+BufferStorage::Info storageInfo {
 	0, // address
+	BLOCK_SIZE,
+	PAGE_SIZE,
 	8192, // sector size
 	2, // sector count
-	Storage_Buffer::Type::MEM_4N
+	BufferStorage::Type::MEM_4N
 };
 
 
@@ -28,5 +28,5 @@ Storage_Buffer::Info storageInfo {
 struct Drivers {
 	Loop_native loop;
 	Flash_File flash{"flash.bin", 16384, PAGE_SIZE, BLOCK_SIZE};
-	Flash_File::Buffer buffer{flash, 256};
+	Flash_File::Buffer buffer{256, flash};
 };
