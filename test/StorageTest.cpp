@@ -23,7 +23,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 
     // determine capacity (number of entries of size 128 that fit into the storage)
     int capacity = std::min(((storageInfo.sectorCount - 1) * (storageInfo.sectorSize - 8)) / (128 + 8), int(std::size(sizes))) - 1;
-    debug::out << "capacity: " << dec(capacity) << '\n';
+    debug::out << "Capacity: " << dec(capacity) << '\n';
 
     // measure time
     auto start = loop.now();

@@ -23,13 +23,13 @@ class Project(ConanFile):
         return False
 
     def requirements(self):
-        self.requires("coco-device/0.3.0", options={"platform": self.options.platform})
+        self.requires("coco-device/towards1", options={"platform": self.options.platform})
 
     def build_requirements(self):
-        self.tool_requires("coco-toolchain/0.3.0", options={"platform": self.options.platform})
-        self.test_requires("coco-devboards/0.6.0", options={"platform": self.options.platform})
-        self.test_requires("coco-loop/0.6.0", options={"platform": self.options.platform})
-        self.test_requires("coco-flash/0.5.0", options={"platform": self.options.platform})
+        self.tool_requires("coco-toolchain/towards1", options={"platform": self.options.platform})
+        self.test_requires("coco-devboards/towards1", options={"platform": self.options.platform})
+        self.test_requires("coco-loop/towards1", options={"platform": self.options.platform})
+        self.test_requires("coco-flash/towards1", options={"platform": self.options.platform})
 
     keep_imports = True
     def imports(self):

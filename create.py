@@ -13,11 +13,12 @@ presets = file.readlines()
 file.close()
 
 # get version from git tag or branch
-# get tag
 try:
+    # get modified files and tag
+    modified = subprocess.check_output("git ls-files -m", shell=True).decode().strip()
     version = subprocess.check_output("git tag --points-at HEAD", shell=True).decode().strip()
-    if version == "":
-        # get branch
+    if modified != "" or version == "":
+        # get branch if modified or no tag found
         version = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).decode().strip()
 except:
     # not a git repository
