@@ -18,15 +18,19 @@ public:
     /// Memory type
     enum class Type : uint8_t {
         /// Generic memory with 4 address bytes in native byte order (e.g. file)
+        /// Header size is 4
         MEM_4N,
 
         /// Generic memory with 1 command byte and 2 address bytes in big endian byte order (e.g. serial eeprom, feram)
+        /// Header size is 3
         MEM_1C2B,
 
         /// Flash (supports page erase) with 4 address bytes in native byte order (e.g. internal flash)
+        /// Header size is 4
         FLASH_4N,
 
         /// Flash (supports page erase) with 1 command byte and 2 address bytes in big endian byte order (e.g. serial flash)
+        /// Header size is 3
         FLASH_1C2B,
     };
 
@@ -61,6 +65,9 @@ public:
         uint8_t commands[3];
     };
 
+    /// @brief Constructor.
+    /// @param info Memory info
+    /// @param buffer Buffer to operate on. Header capacity must match the memory type.
     BufferStorage(const Info &info, Buffer &buffer);
 
     const State &state() override;
