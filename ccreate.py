@@ -1,6 +1,7 @@
-# Call conan create for all presets given in presets.txt
+# Calls "conan create" for all presets in cpresets.txt
+# This creates packages that can be used by dependent projects
 #
-# usage: python create.py
+# usage: $ python create.py
 #
 
 import subprocess
@@ -8,7 +9,7 @@ import shlex
 
 
 # read presets from presets.txt
-file = open('presets.txt', 'r')
+file = open('cpresets.txt', 'r')
 presets = file.readlines()
 file.close()
 
@@ -33,6 +34,6 @@ for preset in presets:
         #print(f"Platform: >{platform}< Profile: >{profile}<")
 
         # create
-        result = subprocess.run(f"conan create -pr:b default -pr:h {profile} -b missing -o:a platform={platform} . --version {version}", shell=True)
+        result = subprocess.run(f"conan create -nr -pr:b default -pr:h {profile} -b missing -o:a \"&:platform={platform}\" . --version {version}", shell=True)
         if result.returncode != 0:
             exit()

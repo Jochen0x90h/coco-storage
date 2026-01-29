@@ -8,7 +8,7 @@ enable_language(CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 # build type
-message("*** Type: ${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES}")
+message("*** Type: ${CMAKE_BUILD_TYPE}") #${CMAKE_CONFIGURATION_TYPES}")
 add_compile_definitions($<$<CONFIG:Debug>:DEBUG>)
 
 # compiler
@@ -20,7 +20,7 @@ message("*** Crosscompiling: ${CMAKE_CROSSCOMPILING}")
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 
 # debug
-set(CMAKE_CXX_FLAGS_RELEASE "-g -Og")
+#set(CMAKE_CXX_FLAGS_RELEASE "-g -Og")
 #set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON" FORCE)
 
 # platform

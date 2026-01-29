@@ -29,7 +29,7 @@ BufferStorage::BufferStorage(const Info &info, Buffer &buffer)
         ++this->offsetShift;
 
     // set header size of the buffer
-    switch (info.type) {
+    /*switch (info.type) {
     case Type::MEM_4N:
     case Type::FLASH_4N:
         this->buffer.headerResize(4);
@@ -38,7 +38,7 @@ BufferStorage::BufferStorage(const Info &info, Buffer &buffer)
     case Type::FLASH_1C2B:
         this->buffer.headerResize(3);
         break;
-    }
+    }*/
 }
 
 const Storage::State &BufferStorage::state() {
@@ -592,7 +592,7 @@ Awaitable<Buffer::Events> BufferStorage::writeEntry(int id, int size, const uint
         entry.offset = this->dataWriteOffset >> this->offsetShift;
     } else {
         // small entry: inline data
-        entry.small.size = SMALL_FLAG | size;
+        entry.small.size = SMALL_FLAG | size | 0x7c; // unused bits set to 1
         std::copy(data, data + size, entry.small.data);
         std::fill(entry.small.data + size, entry.small.data + 3, 0xff); // fill unused bytes with 0xff to reduce flash wear
     }
