@@ -27,10 +27,9 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 
     // measure time
     auto start = loop.now();
-#ifndef NATIVE
+
     // indicate start
     debug::set(debug::BLUE);
-#endif
 
     int result;
 
@@ -39,18 +38,14 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
     if (result != Storage::OK) {
         // fail
         debug::out << "Error: Clear\n";
-#ifndef NATIVE
         debug::set(debug::RED);
-#endif
         co_return;
     }
 
     for (int i = 0; i < 10000; ++i) {
         if (i % 100 == 0) {
             debug::out << dec(i) << '\n';
-#ifndef NATIVE
             debug::set(i / 100);
-#endif
         }
 
 
@@ -74,9 +69,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
         if (result != size) {
             // fail
             debug::out << "Error: Write (" << dec(i) << ")\n";
-#ifndef NATIVE
             debug::set(debug::YELLOW);
-#endif
             co_return;
         }
 
@@ -94,9 +87,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
             if (result != size) {
                 // fail
                 debug::out << "Error: Check size (" << dec(i) << '/' << dec(index) << ")\n";
-#ifndef NATIVE
                 debug::set(debug::MAGENTA);
-#endif
                 co_return;
             }
 
@@ -105,9 +96,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
                 if (buffer[j] != uint8_t(id + j)) {
                     // fail
                     debug::out << "Error: Check data (" << dec(i) << '/' << dec(index) << ")\n";
-#ifndef NATIVE
                     debug::set(debug::CYAN);
-#endif
                     co_return;
                 }
             }
@@ -118,9 +107,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
         if (result != Storage::OK) {
             // fail
             debug::out << "Error: Mount (" << dec(i) << ")\n";
-#ifndef NATIVE
             debug::set(debug::BLUE);
-#endif
             co_return;
         }
         for (int index = 0; index < capacity; ++index) {
@@ -135,9 +122,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
             if (result != size) {
                 // fail
                 debug::out << "Error: Check size 2 (" << dec(i) << '/' << dec(index) << ")\n";
-#ifndef NATIVE
                 debug::set(debug::MAGENTA);
-#endif
                 co_return;
             }
 
@@ -146,9 +131,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
                 if (buffer[j] != uint8_t(id + j)) {
                     // fail
                     debug::out << "Error: Check data 2 (" << dec(i) << '/' << dec(index) << ")\n";
-#ifndef NATIVE
                     debug::set(debug::CYAN);
-#endif
                     co_return;
                 }
             }
@@ -178,8 +161,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 }
 
 int main() {
-    debug::init();
-    Drivers drivers;
+    debug::out << "StorageTest\n";
 
     test(drivers.loop, drivers.buffer);
 

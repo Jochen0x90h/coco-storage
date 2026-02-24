@@ -18,9 +18,11 @@ const BufferStorage::Info storageInfo{
 };
 
 
-// drivers for FlashTest
+// drivers for StorageTest
 struct Drivers {
     Loop_RTC0 loop;
     Flash_flash flash;
     Flash_flash::Buffer<256> buffer{flash};
 };
+
+Drivers drivers;
