@@ -1,6 +1,6 @@
 from conan import ConanFile
 from conan.tools.files import copy
-from conan.tools.cmake import CMake
+from conan.tools.cmake import CMake, CMakeToolchain
 
 
 class Project(ConanFile):
@@ -12,7 +12,7 @@ class Project(ConanFile):
         "platform": [None, "ANY"]}
     default_options = {
         "platform": None}
-    generators = "CMakeDeps", "CMakeToolchain"
+    generators = "CMakeDeps"
     exports_sources = "conanfile.py", "CMakeLists.txt", "coco/*", "test/*"
 
 
@@ -26,7 +26,7 @@ class Project(ConanFile):
         self.requires("coco-device/linux", options={"platform": self.options.platform})
 
     def build_requirements(self):
-        self.tool_requires("coco-toolchain/linux", options={"platform": self.options.platform})
+        #self.tool_requires("coco-toolchain/linux", options={"platform": self.options.platform})
         self.test_requires("coco-devboards/linux", options={"platform": self.options.platform})
         self.test_requires("coco-loop/linux", options={"platform": self.options.platform})
         self.test_requires("coco-flash/linux", options={"platform": self.options.platform})
@@ -36,6 +36,11 @@ class Project(ConanFile):
         # copy dependent libraries into the build folder
         copy(self, "*", src="@bindirs", dst="bin")
         copy(self, "*", src="@libdirs", dst="lib")
+
+    def generate(self):
+        tc = CMakeToolchain(self)
+        tc.variables["PLATFORM"] = self.options.platform
+        tc.generate()
 
     def build(self):
         cmake = CMake(self)

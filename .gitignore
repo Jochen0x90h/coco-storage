@@ -1,7 +1,7 @@
 build/
 __pycache__/
-cpresets.txt
-CMakeUserPresets.json
+/cpresets.txt
+/CMakeUserPresets.json
 
 # VSCode
 .vscode/
@@ -13,5 +13,5 @@ cmake-build*/
 # QtCreator
 CMakeLists.txt.user
 
-# test files
-flash.bin
+# test output
+StorageTest.bin

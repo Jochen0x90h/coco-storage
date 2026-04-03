@@ -2,7 +2,7 @@
 
 #include <coco/ArrayBuffer.hpp>
 #include <coco/Coroutine.hpp>
-#include <coco/ContainerConcept.hpp>
+#include <coco/TriviallyCopyable.hpp>
 
 
 namespace coco {
@@ -50,7 +50,7 @@ public:
     /// Can be used for synchronous waiting using loop.run(storage.state());
     virtual const State &state() = 0;
 
-    /// @brief Mount the file system using the parameters given to the constructor of the implementation
+    /// @brief Mount the file system using the parameters given to the constructor of the implementation.
     /// @param result result, see enum Result
     [[nodiscard]] virtual AwaitableCoroutine mount(int &result) = 0;
 
@@ -59,7 +59,7 @@ public:
     /// @return use co_await on return value to await completion
     [[nodiscard]] virtual AwaitableCoroutine clear(int &result) = 0;
 
-    /// @brief Read an element from the non-volatile storage into a given data buffer
+    /// @brief Read an element from the non-volatile storage into a given data buffer.
     /// @param id id of element
     /// @param data data to read into or nullptr to obtain the size of the element
     /// @param size mumber of bytes to read
@@ -67,26 +67,26 @@ public:
     /// @return use co_await on return value to await completion
     [[nodiscard]] virtual AwaitableCoroutine read(int id, void *data, int size, int &result) = 0;
 
-    /// @brief Convenience wrapper for values
+    /// @brief Convenience wrapper for trivially copyable values.
     ///
-    template <typename T>
+    template <typename T> requires (TriviallyCopyable<T>)
     [[nodiscard]] AwaitableCoroutine read(int id, T &value, int &result) {
         return read(id, &value, sizeof(T), result);
     }
 
-    /// @brief Convenience wrapper for arrays
+    /// @brief Convenience wrapper for arrays.
     ///
-    template <typename T> requires (ArrayConcept<T>)
+    template <typename T> requires (ArrayConcept<T> && !TriviallyCopyable<T>)
     [[nodiscard]] AwaitableCoroutine read(int id, T &array, int &result) {
         return read(id, std::data(array), std::size(array) * sizeof(*std::data(array)), result);
     }
 
     /// @brief It is not possible to directly read into containers
     ///
-    template <typename T> requires (ContainerConcept<T> && !ArrayConcept<T>)
-    [[nodiscard]] AwaitableCoroutine read(int id, T &container, int &result) = delete;
+    //template <typename T> requires (ContainerConcept<T> && !ArrayConcept<T>)
+    //[[nodiscard]] AwaitableCoroutine read(int id, T &container, int &result) = delete;
 
-    /// @brief Get the size of an element
+    /// @brief Get the size of an element.
     /// @param id id of element
     /// @param result size of element or negative on error (see enum Result)
     /// @return use co_await on return value to await completion
@@ -94,7 +94,7 @@ public:
         return read(id, nullptr, 0, result);
     }
 
-    /// @brief Write an element to the non-volatile storage
+    /// @brief Write an element to the non-volatile storage.
     /// @param id id of element
     /// @param data data to write
     /// @param size size of data to write in bytes
@@ -102,14 +102,14 @@ public:
     /// @return use co_await on return value to await completion
     [[nodiscard]] virtual AwaitableCoroutine write(int id, void const *data, int size, int &result) = 0;
 
-    /// @brief Convenience wrapper for values
+    /// @brief Convenience wrapper for trivially copyable values.
     ///
-    template <typename T>
+    template <typename T> requires (TriviallyCopyable<T> && !CStringConcept<T>)
     [[nodiscard]] AwaitableCoroutine write(int id, const T &value, int &result) {
         return write(id, &value, sizeof(T), result);
     }
 
-    /// @brief Convenience wrapper for strings
+    /// @brief Convenience wrapper for strings.
     ///
     template <typename T> requires (CStringConcept<T>)
     [[nodiscard]] AwaitableCoroutine write(int id, const T &str, int &result) {
@@ -117,17 +117,17 @@ public:
         return write(id, s.data(), s.size(), result);
     }
 
-    /// @brief Convenience wrapper for arrays
+    /// @brief Convenience wrapper for arrays.
     ///
-    template <typename T> requires (ArrayConcept<T> && !CStringConcept<T>)
+    template <typename T> requires (ArrayConcept<T> && !TriviallyCopyable<T> && !CStringConcept<T>)
     [[nodiscard]] AwaitableCoroutine write(int id, const T &array, int &result) {
         return write(id, std::data(array), std::size(array) * sizeof(*std::data(array)), result);
     }
 
     /// @brief It is not possible to directly write containers
     ///
-    template <typename T> requires (ContainerConcept<T> && !ArrayConcept<T>)
-    [[nodiscard]] AwaitableCoroutine write(int id, const T &container, int &result) = delete;
+    //template <typename T> requires (ContainerConcept<T> && !ArrayConcept<T>)
+    //[[nodiscard]] AwaitableCoroutine write(int id, const T &container, int &result) = delete;
 
     /// @brief Erase an element, equivalent to writing data of length zero
     /// @param id id of element

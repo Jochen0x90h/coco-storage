@@ -8,9 +8,13 @@
 
 namespace coco {
 
+namespace {
+
 // small entries where data can be stored in the entry
 constexpr int SMALL_SIZE = 3;
 constexpr int SMALL_FLAG = 0x80;
+
+}
 
 BufferStorage::BufferStorage(const Info &info, Buffer &buffer)
     : info(info), buffer(buffer), semaphore(1)
@@ -27,18 +31,6 @@ BufferStorage::BufferStorage(const Info &info, Buffer &buffer)
     this->offsetShift = 0;
     for (int i = 1; i < info.blockSize; i <<= 1)
         ++this->offsetShift;
-
-    // set header size of the buffer
-    /*switch (info.type) {
-    case Type::MEM_4N:
-    case Type::FLASH_4N:
-        this->buffer.headerResize(4);
-        break;
-    case Type::MEM_1C2B:
-    case Type::FLASH_1C2B:
-        this->buffer.headerResize(3);
-        break;
-    }*/
 }
 
 const Storage::State &BufferStorage::state() {
@@ -57,25 +49,25 @@ AwaitableCoroutine BufferStorage::mount(int &result) {
     /*
         Cases for recovery of sector state
         E = Empty
-         O = Open
-         C = Closed
+        O = Open
+        C = Closed
 
         Three sectors, first is head, last is tail but still empty
-         O E E
-         C E E (closed head)
-         C O E (new entry)
+        O E E
+        C E E (closed head)
+        C O E (new entry)
 
         Three sectors, first is head, last is tail
-         O E C
-         C E C (closed head)
-         C O C (copied tail to empty sector)
-         C O E (erased tail)
+        O E C
+        C E C (closed head)
+        C O C (copied tail to empty sector)
+        C O E (erased tail)
 
-         Two sectors, first is head and tail, second is empty
-         O E
-         C E (closed head)
-         C O (copied tail to empty sector)
-         E O (erased tail)
+        Two sectors, first is head and tail, second is empty
+        O E
+        C E (closed head)
+        C O (copied tail to empty sector)
+        E O (erased tail)
     */
 
     // find the current sector
@@ -100,7 +92,7 @@ AwaitableCoroutine BufferStorage::mount(int &result) {
                 this->stat = State::READY;
                 co_return;
             }
-            if (buffer.value<Entry>().empty()) {
+            if (buffer.cast<Entry &>().empty()) {
                 // sector is empty or open: read first data entry (second entry from start of sector)
                 setOffset(sectorOffset + this->entrySize, Command::READ);
                 co_await this->buffer.read(sizeof(Entry));
@@ -110,7 +102,7 @@ AwaitableCoroutine BufferStorage::mount(int &result) {
                     this->stat = State::READY;
                     co_return;
                 }
-                if (buffer.value<Entry>().empty()) {
+                if (buffer.cast<Entry &>().empty()) {
                     // sector is empty
                     sectorState = SectorState::EMPTY;
                 } else {
@@ -263,7 +255,7 @@ AwaitableCoroutine BufferStorage::read(int id, void *data, int size, int &result
                 this->stat = State::READY;
                 co_return;
             }
-            Entry &entry = buffer.value<Entry>();
+            Entry &entry = buffer.cast<Entry &>();
 
             // check if entry is valid
             if (isEntryValid(entryOffset, dataOffset, entry)) {
@@ -475,7 +467,7 @@ AwaitableCoroutine BufferStorage::detectOffsets(int sectorIndex, std::pair<int, 
             // something went wrong
             break;
         }
-        auto &entry = buffer.value<Entry>();
+        auto &entry = buffer.cast<Entry &>();
 
         // end of list is indicated by an empty entry
         if (entry.empty())
@@ -526,7 +518,7 @@ AwaitableCoroutine BufferStorage::getLastEntry(int sectorOffset, int &entryOffse
             entryOffsetResult = -1;
             co_return;
         }
-        auto &entry = buffer.value<Entry>();
+        auto &entry = buffer.cast<Entry &>();
 
         // check if empty, should not happen as the sector is assumed to be closed
         // todo: report malfunction
@@ -555,7 +547,7 @@ AwaitableCoroutine BufferStorage::getLastEntry(int sectorOffset, int &entryOffse
             entryOffsetResult = -1;
             co_return;
         }
-        auto &entry = buffer.value<Entry>();
+        auto &entry = buffer.cast<Entry &>();
 
         // end of list is indicated by an empty entry
         if (entry.empty())
@@ -585,7 +577,7 @@ Awaitable<Buffer::Events> BufferStorage::writeEntry(int id, int size, const uint
     this->entryWriteOffset += this->entrySize;
 
     // create entry
-    auto &entry = buffer.value<Entry>();
+    auto &entry = buffer.cast<Entry &>();
     entry.id = id;
     if (size > SMALL_SIZE) {
         entry.size = size;
@@ -607,7 +599,7 @@ Awaitable<Buffer::Events> BufferStorage::closeSector() {
     auto &buffer = this->buffer;
 
     // create entry
-    auto &entry = buffer.value<Entry>();
+    auto &entry = buffer.cast<Entry &>();
     entry.id = 0xffff;
     entry.size = 0;
     entry.offset = (this->entryWriteOffset - this->entrySize) >> this->offsetShift; // offset of last entry in sector, gets used by getLastEntry()
@@ -690,7 +682,7 @@ AwaitableCoroutine BufferStorage::gc(int emptySectorIndex) {
             // something went wrong
             co_return;
         }
-        Entry tailEntry = buffer.value<Entry>();
+        Entry tailEntry = buffer.cast<Entry &>();
 
         if (isEntryValid(tailEntryOffset, tailDataOffset, tailEntry)) {
             if (tailEntry.size > SMALL_SIZE) {
@@ -719,7 +711,7 @@ AwaitableCoroutine BufferStorage::gc(int emptySectorIndex) {
                         // something went wrong
                         co_return;
                     }
-                    Entry &searchEntry = buffer.value<Entry>();
+                    Entry &searchEntry = buffer.cast<Entry &>();
 
                     // check if entry is valid
                     if (isEntryValid(searchEntryOffset, searchDataOffset, searchEntry)) {
