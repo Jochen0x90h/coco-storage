@@ -151,10 +151,10 @@ protected:
     AwaitableCoroutine getLastEntry(int sectorOffset, int &entryOffsetResult);
 
     // write an entry (without data unless size is up to 2)
-    Awaitable<Buffer::Events> writeEntry(int id, int size, const uint8_t *data);
+    Awaitable<CoroutineTask<Buffer::Events>> writeEntry(int id, int size, const uint8_t *data);
 
     // close the current sector
-    Awaitable<Buffer::Events> closeSector();
+    Awaitable<CoroutineTask<Buffer::Events>> closeSector();
 
     // check if closing allocation table entry is valid
     bool isCloseEntryValid(const Entry &entry);

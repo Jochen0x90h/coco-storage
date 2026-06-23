@@ -568,7 +568,7 @@ AwaitableCoroutine BufferStorage::getLastEntry(int sectorOffset, int &entryOffse
     entryOffsetResult = validOffset;
 }
 
-Awaitable<Buffer::Events> BufferStorage::writeEntry(int id, int size, const uint8_t *data) {
+Awaitable<CoroutineTask<Buffer::Events>> BufferStorage::writeEntry(int id, int size, const uint8_t *data) {
     auto &buffer = this->buffer;
 
     // set offset and advance entry write offset
@@ -595,7 +595,7 @@ Awaitable<Buffer::Events> BufferStorage::writeEntry(int id, int size, const uint
 }
 
 
-Awaitable<Buffer::Events> BufferStorage::closeSector() {
+Awaitable<CoroutineTask<Buffer::Events>> BufferStorage::closeSector() {
     auto &buffer = this->buffer;
 
     // create entry

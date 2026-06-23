@@ -10,7 +10,7 @@ using namespace coco;
 
 const BufferStorage::Info storageInfo{
     FLASH_ADDRESS + FLASH_SIZE - 8192 * 2, // address
-    flash::BLOCK_SIZE,
+    flash::WORD_SIZE,
     flash::PAGE_SIZE,
     8192, // sector size
     2, // sector count
