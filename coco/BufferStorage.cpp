@@ -19,17 +19,17 @@ constexpr int SMALL_FLAG = 0x80;
 BufferStorage::BufferStorage(const Info &info, Buffer &buffer)
     : info(info), buffer(buffer), semaphore(1)
 {
-    assert(info.blockSize >= 1 && firstBit(info.blockSize) == info.blockSize);
+    assert(info.wordSize >= 1 && firstBit(info.wordSize) == info.wordSize);
     assert(info.pageSize >= 1 && firstBit(info.pageSize) == info.pageSize);
-    assert(info.sectorSize >= 1 && info.sectorSize % info.pageSize == 0 && info.sectorSize <= 32768 * info.blockSize);
+    assert(info.sectorSize >= 1 && info.sectorSize % info.pageSize == 0 && info.sectorSize <= 32768 * info.wordSize);
     assert(info.sectorCount >= 2);
 
     // align size of allocation table entry to flash block size
-    this->entrySize = int(sizeof(Entry) + info.blockSize - 1) & ~(info.blockSize - 1);
+    this->entrySize = int(sizeof(Entry) + info.wordSize - 1) & ~(info.wordSize - 1);
 
     // calc offset shift
     this->offsetShift = 0;
-    for (int i = 1; i < info.blockSize; i <<= 1)
+    for (int i = 1; i < info.wordSize; i <<= 1)
         ++this->offsetShift;
 }
 
@@ -270,7 +270,7 @@ AwaitableCoroutine BufferStorage::read(int id, void *data, int size, int &result
                         // calc offset in memory (offset of sector + offset of entry)
                         int offset = sectorOffset + (entry.offset << this->offsetShift);
                         while (s > 0) {
-                            int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+                            int capacity = buffer.capacity() & ~(this->info.wordSize - 1);
                             int toRead = std::min(s, capacity);
 
                             setOffset(offset, Command::READ);
@@ -371,11 +371,11 @@ AwaitableCoroutine BufferStorage::write(int id, const void *data, int size, int 
     // write data
     auto src = reinterpret_cast<const uint8_t *>(data);
     if (size > SMALL_SIZE) {
-        int offset = this->dataWriteOffset - align(size, this->info.blockSize);
+        int offset = this->dataWriteOffset - align(size, this->info.wordSize);
         this->dataWriteOffset = offset;
         int s = size;
         while (s > 0) {
-            int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+            int capacity = buffer.capacity() & ~(this->info.wordSize - 1);
             int toWrite = std::min(s, capacity);
 
             setOffset(this->sectorOffset + offset, Command::WRITE);
@@ -486,7 +486,7 @@ AwaitableCoroutine BufferStorage::detectOffsets(int sectorIndex, std::pair<int, 
     int size = dataOffset - entryOffset;
     int o = entryOffset;
     while (size > 0) {
-        int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+        int capacity = buffer.capacity() & ~(this->info.wordSize - 1);
         int toCheck = std::min(size, capacity);
 
         setOffset(sectorOffset + o, Command::READ);
@@ -496,7 +496,7 @@ AwaitableCoroutine BufferStorage::detectOffsets(int sectorIndex, std::pair<int, 
         for (int i = 0; i < read; ++i) {
             if (buffer[i] != 0xff) {
                 // down-align to block size
-                dataOffset = (o + i) & ~(this->info.blockSize - 1);
+                dataOffset = (o + i) & ~(this->info.wordSize - 1);
             }
         }
         size -= toCheck;
@@ -645,7 +645,7 @@ AwaitableCoroutine BufferStorage::eraseSector(int index) {
         int s = this->info.sectorSize;
         int offset = sectorOffset;
         while (s > 0) {
-            int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+            int capacity = buffer.capacity() & ~(this->info.wordSize - 1);
             int toWrite = std::min(s, capacity);
 
             std::fill(buffer.data(), buffer.data() + capacity, 0xff);
@@ -739,12 +739,12 @@ AwaitableCoroutine BufferStorage::gc(int emptySectorIndex) {
                 if ((tailEntry.small.size & SMALL_FLAG) == 0) {
                     // not a small entry: copy data
                     dataSize = tailEntry.size;
-                    int offset = this->dataWriteOffset - align(dataSize, this->info.blockSize);
+                    int offset = this->dataWriteOffset - align(dataSize, this->info.wordSize);
                     this->dataWriteOffset = offset;
                     int tailOffset = tailSectorOffset + tailDataOffset;
                     int s = dataSize;
                     while (s > 0) {
-                        int capacity = buffer.capacity() & ~(this->info.blockSize - 1);
+                        int capacity = buffer.capacity() & ~(this->info.wordSize - 1);
                         int toCopy = std::min(s, capacity);
 
                         setOffset(tailOffset, Command::READ);

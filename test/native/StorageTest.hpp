@@ -27,8 +27,8 @@ const BufferStorage::Info storageInfo {
 // drivers for StorageTest
 struct Drivers {
     Loop_native loop;
-    Flash_File flash{"StorageTest.bin", 16384, PAGE_SIZE, BLOCK_SIZE};
-    Flash_File::Buffer buffer{256, flash};
+    Flash_File flash{"StorageTest.bin", 16384, PAGE_SIZE, WORD_SIZE};
+    Flash_File::Buffer flashBuffer{256, flash};
 };
 
 Drivers drivers;

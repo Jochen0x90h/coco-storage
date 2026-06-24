@@ -22,7 +22,7 @@ const BufferStorage::Info storageInfo{
 struct Drivers {
     Loop_TIM2 loop{SYS_CLOCK};
     Flash_flash flash;
-    Flash_flash::Buffer<256> buffer{flash};
+    Flash_flash::Buffer<256> flashBuffer{flash};
 };
 
 Drivers drivers;

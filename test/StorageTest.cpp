@@ -163,7 +163,7 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
 int main() {
     debug::out << "StorageTest\n";
 
-    test(drivers.loop, drivers.buffer);
+    test(drivers.loop, drivers.flashBuffer);
 
     drivers.loop.run();
 }

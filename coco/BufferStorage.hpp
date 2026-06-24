@@ -46,8 +46,8 @@ public:
         /// Start address in memory
         uint32_t address;
 
-        /// Size of a block that has to be written at once, must be power of two
-        int blockSize;
+        /// Size of a word that has to be written at once, must be power of two
+        int wordSize;
 
         /// Size of a page that has to be erased at once, must be power of two
         int pageSize;
