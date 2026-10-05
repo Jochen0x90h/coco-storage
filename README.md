@@ -6,7 +6,7 @@ Inspired by these implementations:
 * [Zephyr NVS](https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html)
 
 ## Import
-Add coco-storage/\<version> to your conanfile where version corresponds to the git tags
+Add coco-storage/\<version> to your conanfile where version corresponds to a git tag.
 
 ## Features
 * Storage interface that can be implemented on top of on-chip flash, external flash or existing implementations

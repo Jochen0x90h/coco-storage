@@ -16,29 +16,11 @@ namespace coco {
 class BufferStorage : public Storage {
 public:
     /// Memory type
-    enum class Type : uint8_t {
-        /// Generic memory with 4 address bytes in native byte order (e.g. file)
-        /// Header size is 4
-        MEM_4N,
+    enum class Flags : uint8_t {
+        NONE = 0,
 
-        /// Generic memory with 1 command byte and 2 address bytes in big endian byte order (e.g. serial eeprom, feram)
-        /// Header size is 3
-        MEM_1C2B,
-
-        /// Flash (supports page erase) with 4 address bytes in native byte order (e.g. internal flash)
-        /// Header size is 4
-        FLASH_4N,
-
-        /// Flash (supports page erase) with 1 command byte and 2 address bytes in big endian byte order (e.g. serial flash)
-        /// Header size is 3
-        FLASH_1C2B,
-    };
-
-    /// Memory command
-    enum class Command {
-        READ = 0,
-        WRITE = 1,
-        ERASE = 2
+        // supports erase command
+        ERASE = 1,
     };
 
     /// Memory info
@@ -46,23 +28,26 @@ public:
         /// Start address in memory
         uint32_t address;
 
-        /// Size of a word that has to be written at once, must be power of two
-        int wordSize;
-
-        /// Size of a page that has to be erased at once, must be power of two
-        int pageSize;
-
         /// Size of a sector, must be a multiple of pageSize and up to 32768 * blockSize
         int sectorSize;
 
         /// Number of sectors, must be at least 2
-        int sectorCount;
+        int8_t sectorCount;
+
+        /// Memory type ()
+        Flags flags;
+
+        /// Size of a word that has to be written at once, must be power of two
+        int16_t wordSize;
+
+        /// Size of a page that has to be erased at once, must be power of two
+        int pageSize;
 
         /// Memory type
-        Type type;
+        //Type type;
 
         /// Commands for serial memory (read, write, erase)
-        uint8_t commands[3];
+        //uint8_t commands[3];
     };
 
     /// @brief Constructor.
@@ -90,6 +75,7 @@ protected:
 
     // allocation table entry
     union Entry {
+        // normal entry with size > 3
         struct {
             // id of entry
             uint16_t id;
@@ -98,10 +84,10 @@ protected:
             // size of data
             uint16_t size;
 
-            // offset of data in sector or data if size <= 2
+            // offset of data in sector
             uint16_t offset;
 #else
-            // offset of data in sector or data if size <= 2
+            // offset of data in sector
             uint16_t offset;
 
             // size of data
@@ -111,6 +97,7 @@ protected:
             uint16_t checksum;
         };
 
+        // small entry with size <= 3
         struct {
             uint16_t id;
 
@@ -135,11 +122,25 @@ protected:
         bool empty() {return (this->data[0] & this->data[1]) == 0xffffffff;}
     };
 
+    // calculate the checksum of an entry
     static uint16_t calcChecksum(const Entry &entry) {
         return crc16(&entry, offsetof(Entry, checksum));
     }
 
-    void setOffset(uint32_t offset, Command command);
+    COCO_NODISCARD auto read(uint32_t offset, int size) {
+        buffer_.header<uint32_t>() = info_.address + offset;
+        return buffer_.read(size);
+    }
+
+    COCO_NODISCARD auto write(uint32_t offset, int size) {
+        buffer_.header<uint32_t>() = info_.address + offset;
+        return buffer_.write(size);
+    }
+
+    COCO_NODISCARD auto erase(uint32_t offset) {
+        buffer_.header<uint32_t>() = info_.address + offset;
+        return buffer_.erase();
+    }
 
     // check if allocation table entry is valid
     bool isEntryValid(int entryOffset, int dataOffset, const Entry &entry);
@@ -170,28 +171,29 @@ protected:
 
 
     // memory info
-    Info info;
+    Info info_;
 
     // buffer for reading/writing on memory
-    Buffer &buffer;
+    Buffer &buffer_;
 
     // size of allocation table entry (Entry) aligned to flash block size
-    int entrySize;
+    int entrySize_;
 
     // shift of offset allocation table entry (Entry) according to info.blockSize
-    int offsetShift;
+    int offsetShift_;
 
-    State stat = State::NOT_MOUNTED;
+    State state_ = State::NOT_MOUNTED;
 
     // current sector
-    int sectorIndex = 0;
-    int sectorOffset = 0;
+    int sectorIndex_ = 0;
+    int sectorOffset_ = 0;
 
     // write offsets in current sector
-    int entryWriteOffset;
-    int dataWriteOffset;
+    int entryWriteOffset_;
+    int dataWriteOffset_;
 
-    Semaphore semaphore;
+    Semaphore semaphore_;
 };
+COCO_ENUM(BufferStorage::Flags)
 
 } // namespace coco

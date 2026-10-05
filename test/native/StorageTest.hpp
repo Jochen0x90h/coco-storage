@@ -16,17 +16,19 @@ constexpr int PAGE_SIZE = 2048;
 
 const BufferStorage::Info storageInfo {
     0, // address
-    WORD_SIZE,
-    PAGE_SIZE,
     8192, // sector size
     2, // sector count
-    BufferStorage::Type::MEM_4N
+    BufferStorage::Flags::ERASE,
+    WORD_SIZE,
+    PAGE_SIZE
 };
 
 
 // drivers for StorageTest
 struct Drivers {
     Loop_native loop;
+
+    // flash emulation
     Flash_File flash{"StorageTest.bin", 16384, PAGE_SIZE, WORD_SIZE};
     Flash_File::Buffer flashBuffer{256, flash};
 };

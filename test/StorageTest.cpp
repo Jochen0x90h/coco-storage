@@ -48,7 +48,6 @@ Coroutine test(Loop &loop, Buffer &flashBuffer) {
             debug::set(i / 100);
         }
 
-
         // generate random size in range [0, 128]
         int size = random.draw() % 129;
 
