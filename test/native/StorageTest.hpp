@@ -29,7 +29,7 @@ struct Drivers {
     Loop_native loop;
 
     // flash emulation
-    Flash_File flash{"StorageTest.bin", 16384, PAGE_SIZE, WORD_SIZE};
+    Flash_File flash{"StorageTest.bin", 16384, WORD_SIZE, PAGE_SIZE};
     Flash_File::Buffer flashBuffer{256, flash};
 };
 

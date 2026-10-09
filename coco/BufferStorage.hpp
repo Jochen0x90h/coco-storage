@@ -42,12 +42,6 @@ public:
 
         /// Size of a page that has to be erased at once, must be power of two
         int pageSize;
-
-        /// Memory type
-        //Type type;
-
-        /// Commands for serial memory (read, write, erase)
-        //uint8_t commands[3];
     };
 
     /// @brief Constructor.
